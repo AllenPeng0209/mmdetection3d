@@ -5,6 +5,7 @@ from tools.data_converter import indoor_converter as indoor
 from tools.data_converter import kitti_converter as kitti
 from tools.data_converter import lyft_converter as lyft_converter
 from tools.data_converter import nuscenes_converter as nuscenes_converter
+from tools.data_converter import deeproute_converter as deeproute_converter
 from tools.data_converter.create_gt_database import create_groundtruth_database
 
 
@@ -30,6 +31,17 @@ def kitti_data_prep(root_path, info_prefix, version, out_dir):
         relative_path=False,
         mask_anno_path='instances_train.json',
         with_mask=(version == 'mask'))
+
+
+def deeproute_data_prep(root_path, info_prefix, out_dir):
+    deeproute_converter.create_deeproute_info_file(root_path, info_prefix)
+    create_groundtruth_database(
+    'DeeprouteDataset',
+    root_path,
+    info_prefix,
+    f'{out_dir}/{info_prefix}_infos_train.pkl')
+
+
 
 
 def nuscenes_data_prep(root_path,
@@ -213,6 +225,13 @@ if __name__ == '__main__':
             dataset_name='LyftDataset',
             out_dir=args.out_dir,
             max_sweeps=args.max_sweeps)
+    elif args.dataset == 'deeproute':
+        deeproute_data_prep(
+	root_path=args.root_path, 
+        info_prefix=args.extra_tag, 
+        dataset_name='DeeprouteDataset', 
+        outdir=args.out_dir, 
+        max_sweeps=args.max_sweeps)
     elif args.dataset == 'scannet':
         scannet_data_prep(
             root_path=args.root_path,

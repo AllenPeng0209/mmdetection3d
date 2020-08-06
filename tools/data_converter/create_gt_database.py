@@ -182,6 +182,7 @@ def create_groundtruth_database(dataset_class_name,
                 with_bbox_3d=True,
                 with_label_3d=True)
         ])
+    
     dataset = build_dataset(dataset_cfg)
 
     if database_save_path is None:
