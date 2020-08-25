@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from mmcv.cnn import build_norm_layer
 from torch import nn
@@ -151,8 +152,16 @@ class PFNLayer(nn.Module):
             torch.Tensor: Features of Pillars.
         """
         x = self.linear(inputs)
+        expected_x = torch.from_numpy(
+            np.load('tests/test_voxel_encoders/linear_outputs.npy'))
+        assert torch.allclose(x[:100, ...], expected_x)
+        torch.backends.cudnn.enabled = False
         x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2,
                                                                1).contiguous()
+        expected_x = torch.from_numpy(
+            np.load('tests/test_voxel_encoders/norm_outputs.npy'))
+        assert torch.allclose(x[:100, ...], expected_x)
+        torch.backends.cudnn.enabled = True
         x = F.relu(x)
 
         if self.mode == 'max':

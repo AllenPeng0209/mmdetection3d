@@ -1,6 +1,6 @@
 import mmcv
 import numpy as np
-
+from IPython import embed
 from .builder import DATASETS
 
 
@@ -18,6 +18,7 @@ class ClassSampledDataset(object):
     def __init__(self, dataset, ann_file):
         self.dataset = dataset
         self.CLASSES = dataset.CLASSES
+        embed()
         self.repeat_indices = self._get_repeat_indices(ann_file)
         # self.dataset.data_infos = self.data_infos
         if hasattr(self.dataset, 'flag'):
