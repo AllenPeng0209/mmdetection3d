@@ -3,7 +3,7 @@ import numpy as np
 
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import LoadAnnotations
-
+from IPython import embed
 
 @PIPELINES.register_module()
 class LoadMultiViewImageFromFiles(object):

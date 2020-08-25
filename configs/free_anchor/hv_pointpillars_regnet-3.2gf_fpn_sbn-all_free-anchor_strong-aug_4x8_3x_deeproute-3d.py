@@ -1,4 +1,4 @@
-_base_ = './hv_pointpillars_fpn_sbn-all_free-anchor_4x8_2x_nus-3d.py'
+_base_ = './hv_pointpillars_fpn_sbn-all_free-anchor_4x8_2x_deeproute-3d.py'
 
 model = dict(
     pretrained=dict(pts='open-mmlab://regnetx_3.2gf'),
@@ -18,7 +18,7 @@ model = dict(
 
 # If point cloud range is changed, the models should also change their point
 # cloud range accordingly
-point_cloud_range = [-50, -50, -5, 50, 50, 3]
+point_cloud_range = [-80, -80, -5, 80, 80, 3]
 # For nuScenes we usually do 10-class detection
 class_names = [
     'car', 'truck', 'trailer', 'bus', 'construction_vehicle', 'bicycle',
@@ -28,18 +28,15 @@ class_names = [
 # Uncomment the following if use ceph or other file clients.
 # See https://mmcv.readthedocs.io/en/latest/api.html#mmcv.fileio.FileClient
 # for more details.
-file_client_args = dict(
-    backend='disk',
-    )
+file_client_args = dict(backend='disk')
+
+
+
 train_pipeline = [
     dict(
         type='LoadPointsFromFile',
-        load_dim=5,
-        use_dim=5,
-        file_client_args=file_client_args),
-    dict(
-        type='LoadPointsFromMultiSweeps',
-        sweeps_num=10,
+        load_dim=3,
+        use_dim=3,
         file_client_args=file_client_args),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
     dict(

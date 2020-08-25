@@ -6,7 +6,7 @@ from mmcv.ops import roi_align
 from os import path as osp
 from pycocotools import mask as maskUtils
 from pycocotools.coco import COCO
-
+from IPython import embed
 from mmdet3d.core.bbox import box_np_ops as box_np_ops
 from mmdet3d.datasets import build_dataset
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
@@ -182,6 +182,23 @@ def create_groundtruth_database(dataset_class_name,
                 with_bbox_3d=True,
                 with_label_3d=True)
         ])
+    
+    elif dataset_class_name =='DeeprouteDataset':
+        file_client_args = dict(backend='disk')
+        dataset_cfg.update(
+            test_mode=False,
+            modality=dict( 
+                use_lidar=True,
+                use_depth=False,
+                use_lidar_intensity=True,
+                use_camera=with_mask,)  
+                ,  
+            pipeline=[dict(type='LoadPointsFromFile',load_dim=3, use_dim=3,   
+            file_client_args=file_client_args),  
+            dict(  type='LoadAnnotations3D', 
+            with_bbox_3d=True,  with_label_3d=True,
+            file_client_args=file_client_args)  ])
+    
     dataset = build_dataset(dataset_cfg)
 
     if database_save_path is None:
@@ -208,6 +225,7 @@ def create_groundtruth_database(dataset_class_name,
         annos = example['ann_info']
         image_idx = example['sample_idx']
         points = example['points']
+        #original
         gt_boxes_3d = annos['gt_bboxes_3d'].tensor.numpy()
         names = annos['gt_names']
         group_dict = dict()
@@ -220,6 +238,7 @@ def create_groundtruth_database(dataset_class_name,
             difficulty = annos['difficulty']
 
         num_obj = gt_boxes_3d.shape[0]
+        
         point_indices = box_np_ops.points_in_rbbox(points, gt_boxes_3d)
 
         if with_mask:

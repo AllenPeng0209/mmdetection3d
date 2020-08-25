@@ -11,8 +11,8 @@ from mmdet3d.datasets import build_dataloader, build_dataset
 from mmdet3d.models import build_detector
 from mmdet.apis import multi_gpu_test, set_random_seed
 from mmdet.core import wrap_fp16_model
-from tools.fuse_conv_bn import fuse_module
-
+#from tools.fuse_conv_bn import fuse_module
+from IPython import embed
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -135,7 +135,6 @@ def main():
             broadcast_buffers=False)
         outputs = multi_gpu_test(model, data_loader, args.tmpdir,
                                  args.gpu_collect)
-
     rank, _ = get_dist_info()
     if rank == 0:
         if args.out:

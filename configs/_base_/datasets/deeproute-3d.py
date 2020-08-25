@@ -1,13 +1,12 @@
 # If point cloud range is changed, the models should also change their point
 # cloud range accordingly
-point_cloud_range = [-50, -50, -5, 50, 50, 3]
+point_cloud_range = [-80, -80, -5, 80, 80, 3]
 # For nuScenes we usually do 10-class detection
 class_names = [
-    'car', 'truck', 'trailer', 'bus', 'construction_vehicle', 'bicycle',
-    'motorcycle', 'pedestrian', 'traffic_cone', 'barrier'
+    'smallMot', 'bigMot', 'pedestrian', 'nonMot', 'TrafficCone'
 ]
-dataset_type = 'NuScenesDataset'
-data_root = 'data/nuscenes/'
+dataset_type = 'DeeprouteDataset'
+data_root = 'data/deeproute/'
 # Input modality for nuScenes dataset, this is consistent with the submission
 # format which requires the information in input_modality.
 input_modality = dict(
@@ -23,18 +22,14 @@ file_client_args = dict(backend='disk')
 # file_client_args = dict(
 #     backend='petrel',
 #     path_mapping=dict({
-#         './data/nuscenes/': 's3://nuscenes/nuscenes/',
-#         'data/nuscenes/': 's3://nuscenes/nuscenes/'
+#         './data/deeproute/': 's3://deeproute/deeproute/',
+#         'data/deeproute/': 's3://deeproute/deeproute/'
 #     }))
 train_pipeline = [
     dict(
         type='LoadPointsFromFile',
-        load_dim=5,
-        use_dim=5,
-        file_client_args=file_client_args),
-    dict(
-        type='LoadPointsFromMultiSweeps',
-        sweeps_num=10,
+        load_dim=3,
+        use_dim=3,
         file_client_args=file_client_args),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
     dict(
@@ -53,12 +48,8 @@ train_pipeline = [
 test_pipeline = [
     dict(
         type='LoadPointsFromFile',
-        load_dim=5,
-        use_dim=5,
-        file_client_args=file_client_args),
-    dict(
-        type='LoadPointsFromMultiSweeps',
-        sweeps_num=10,
+        load_dim=3,
+        use_dim=3,
         file_client_args=file_client_args),
     dict(
         type='MultiScaleFlipAug3D',
@@ -84,22 +75,22 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=1,
-    workers_per_gpu=4,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'nuscenes_infos_train.pkl',
+        ann_file=data_root + 'deeproute_infos_train.pkl',
         pipeline=train_pipeline,
         classes=class_names,
         modality=input_modality,
         test_mode=False,
-        # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
+        # we use box_type_3d='LiDAR' in kitti and deeproute dataset
         # and box_type_3d='Depth' in sunrgbd and scannet dataset.
         box_type_3d='LiDAR'),
     val=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'nuscenes_infos_val.pkl',
+        ann_file=data_root + 'deeproute_infos_val.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -108,13 +99,13 @@ data = dict(
     test=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'nuscenes_infos_val.pkl',
+        ann_file=data_root + 'deeproute_infos_test.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,
         test_mode=True,
         box_type_3d='LiDAR'))
-# For nuScenes dataset, we usually evaluate the model at the end of training.
+# For deeproute dataset, we usually evaluate the model at the end of training.
 # Since the models are trained by 24 epochs by default, we set evaluation
 # interval to be 24. Please change the interval accordingly if you do not
 # use a default schedule.
