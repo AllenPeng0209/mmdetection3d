@@ -12,7 +12,6 @@ from ..core import show_result
 from ..core.bbox import Box3DMode, LiDARInstance3DBoxes, points_cam2img
 from .custom_3d import Custom3DDataset
 import json
-
 @DATASETS.register_module()
 class DeeprouteDataset(Custom3DDataset):
     r"""KITTI Dataset.
