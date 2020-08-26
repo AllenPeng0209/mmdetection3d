@@ -3,7 +3,7 @@ import torch
 from mmcv.cnn import build_norm_layer
 from torch import nn
 from torch.nn import functional as F
-
+from IPython import embed
 
 def get_paddings_indicator(actual_num, max_num, axis=0):
     """Create boolean mask by actually number of a padded tensor.
@@ -80,8 +80,7 @@ class VFELayer(nn.Module):
         # [K, T, 7] tensordot [7, units] = [K, T, units]
         voxel_count = inputs.shape[1]
         x = self.linear(inputs)
-        x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2,
-                                                               1).contiguous()
+        x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
         pointwise = F.relu(x)
         # [K, T, units]
         if self.max_out:

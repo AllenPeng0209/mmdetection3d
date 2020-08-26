@@ -2,7 +2,7 @@ import mmcv
 import torch
 
 from mmdet.core.anchor import ANCHOR_GENERATORS
-
+from IPython import embed
 
 @ANCHOR_GENERATORS.register_module()
 class Anchor3DRangeGenerator(object):
@@ -305,6 +305,7 @@ class AlignedAnchor3DRangeGenerator(Anchor3DRangeGenerator):
         rets = list(rets)
         tile_shape = [1] * 5
         tile_shape[-2] = int(sizes.shape[0])
+        
         for i in range(len(rets)):
             rets[i] = rets[i].unsqueeze(-2).repeat(tile_shape).unsqueeze(-1)
 
@@ -315,7 +316,6 @@ class AlignedAnchor3DRangeGenerator(Anchor3DRangeGenerator):
         rets.insert(3, sizes)
 
         ret = torch.cat(rets, dim=-1).permute([2, 1, 0, 3, 4, 5])
-
         if len(self.custom_values) > 0:
             custom_ndim = len(self.custom_values)
             custom = ret.new_zeros([*ret.shape[:-1], custom_ndim])
