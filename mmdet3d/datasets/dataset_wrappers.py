@@ -36,6 +36,7 @@ class ClassSampledDataset(object):
         """
         data = mmcv.load(ann_file)
         _cls_inds = {name: [] for name in self.CLASSES}
+        embed()
         for idx, info in enumerate(data['infos']):
             if self.dataset.use_valid_flag:
                 mask = info['valid_flag']
