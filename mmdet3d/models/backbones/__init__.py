@@ -3,8 +3,10 @@ from .multi_backbone import MultiBackbone
 from .nostem_regnet import NoStemRegNet
 from .pointnet2_sa_ssg import PointNet2SASSG
 from .second import SECOND
+from .ssd_backbone import SSDSAMSG
 
 __all__ = [
     'ResNet', 'ResNetV1d', 'ResNeXt', 'SSDVGG', 'HRNet', 'NoStemRegNet',
     'SECOND', 'PointNet2SASSG', 'MultiBackbone'
+    ,'SSDSAMSG'
 ]
