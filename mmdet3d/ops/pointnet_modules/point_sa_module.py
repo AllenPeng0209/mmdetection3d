@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from typing import List
 
 from mmdet3d.ops import (GroupAll, QueryAndGroup, furthest_point_sample,
-                         gather_points)
+                         furthest_point_sample_with_dist, gather_points)
 
 
 class PointSAModuleMSG(nn.Module):
@@ -18,12 +18,23 @@ class PointSAModuleMSG(nn.Module):
         sample_nums (list[int]): Number of samples in each ball query.
         mlp_channels (list[int]): Specify of the pointnet before
             the global pooling for each scale.
+        fps_mod (list[str]: Type of FPS method, valid mod
+            ['F-FPS', 'D-FPS', 'FS'], Default: ['D-FPS'].
+        fps_sample_range_list (list[int]): Range of points to apply FPS.
+            Default: [-1].
         norm_cfg (dict): Type of normalization method.
             Default: dict(type='BN2d').
         use_xyz (bool): Whether to use xyz.
             Default: True.
         pool_mod (str): Type of pooling method.
             Default: 'max_pool'.
+        fps_mod (list[str]: Type of FPS method, valid mod
+            ['F-FPS', 'D-FPS', 'FS'], Default: ['D-FPS'].
+            F-FPS: using feature distances for FPS.
+            D-FPS: using Euclidean distances of points for FPS.
+            FS: using F-FPS and D-FPS simultaneously.
+        fps_sample_range_list (list[int]): Range of points to apply FPS.
+            Default: [-1].
         normalize_xyz (bool): Whether to normalize local XYZ with radius.
             Default: False.
     """
@@ -33,6 +44,8 @@ class PointSAModuleMSG(nn.Module):
                  radii: List[float],
                  sample_nums: List[int],
                  mlp_channels: List[List[int]],
+                 fps_mod: List[str] = ['D-FPS'],
+                 fps_sample_range_list: List[int] = [-1],
                  norm_cfg: dict = dict(type='BN2d'),
                  use_xyz: bool = True,
                  pool_mod='max',
@@ -41,11 +54,26 @@ class PointSAModuleMSG(nn.Module):
 
         assert len(radii) == len(sample_nums) == len(mlp_channels)
         assert pool_mod in ['max', 'avg']
+        assert isinstance(fps_mod, list) or isinstance(fps_mod, tuple)
+        assert isinstance(fps_sample_range_list, list) or isinstance(
+            fps_sample_range_list, tuple)
+        assert len(fps_mod) == len(fps_sample_range_list)
 
-        self.num_point = num_point
+        if isinstance(mlp_channels, tuple):
+            mlp_channels = list(map(list, mlp_channels))
+
+        if isinstance(num_point, int):
+            self.num_point = [num_point]
+        elif isinstance(num_point, list) or isinstance(num_point, tuple):
+            self.num_point = num_point
+        else:
+            raise NotImplementedError('Error type of num_point!')
+
         self.pool_mod = pool_mod
         self.groupers = nn.ModuleList()
         self.mlps = nn.ModuleList()
+        self.fps_mod_list = fps_mod
+        self.fps_sample_range_list = fps_sample_range_list
 
         for i in range(len(radii)):
             radius = radii[i]
@@ -81,8 +109,9 @@ class PointSAModuleMSG(nn.Module):
         self,
         points_xyz: torch.Tensor,
         features: torch.Tensor = None,
-        indices: torch.Tensor = None
-    ) -> (torch.Tensor, torch.Tensor, torch.Tensor):
+        indices: torch.Tensor = None,
+        target_xyz: torch.Tensor = None,
+    ) -> (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor):
         """forward.
 
         Args:
@@ -91,6 +120,7 @@ class PointSAModuleMSG(nn.Module):
                 Default: None.
             indices (Tensor): (B, num_point) Index of the features.
                 Default: None.
+            target_xyz (Tensor): (B, M, 3) new_xyz coordinates of the outputs.
 
         Returns:
             Tensor: (B, M, 3) where M is the number of points.
@@ -101,15 +131,67 @@ class PointSAModuleMSG(nn.Module):
                 Index of the features.
         """
         new_features_list = []
-
         xyz_flipped = points_xyz.transpose(1, 2).contiguous()
-        if indices is None:
-            indices = furthest_point_sample(points_xyz, self.num_point)
-        else:
-            assert (indices.shape[1] == self.num_point)
 
-        new_xyz = gather_points(xyz_flipped, indices).transpose(
-            1, 2).contiguous() if self.num_point is not None else None
+        if indices is not None:
+            assert (indices.shape[1] == self.num_point[0])
+            new_xyz = gather_points(xyz_flipped, indices).transpose(
+                1, 2).contiguous() if self.num_point is not None else None
+        elif target_xyz is not None:
+            new_xyz = target_xyz.contiguous()
+        else:
+            indices = []
+            last_fps_end_index = 0
+
+            for fps_sample_range, fps_method, npoint in zip(
+                    self.fps_sample_range_list, self.fps_mod_list,
+                    self.num_point):
+                assert fps_method in ['D-FPS', 'F-FPS', 'FS']
+                assert fps_sample_range < points_xyz.shape[1]
+
+                if fps_sample_range == -1:
+                    sample_points_xyz = points_xyz[:, last_fps_end_index:]
+                    sample_features = features[:, :, last_fps_end_index:]
+                else:
+                    sample_points_xyz = \
+                        points_xyz[:, last_fps_end_index:fps_sample_range]
+                    sample_features = \
+                        features[:, :, last_fps_end_index:fps_sample_range]
+
+                if fps_method == 'D-FPS':
+                    fps_idx = furthest_point_sample(
+                        sample_points_xyz.contiguous(), npoint)
+
+                elif fps_method == 'F-FPS':
+                    features_for_fps = torch.cat(
+                        [sample_points_xyz,
+                         sample_features.transpose(1, 2)],
+                        dim=2)
+                    features_dist = calc_square_dist(
+                        features_for_fps, features_for_fps, norm=False)
+                    fps_idx = furthest_point_sample_with_dist(
+                        features_dist, npoint)
+                elif fps_method == 'FS':
+                    features_for_fps = torch.cat(
+                        [sample_points_xyz,
+                         sample_features.transpose(1, 2)],
+                        dim=2)
+                    features_dist = calc_square_dist(
+                        features_for_fps, features_for_fps, norm=False)
+                    fps_idx_ffps = furthest_point_sample_with_dist(
+                        features_dist, npoint)
+                    fps_idx_dfps = furthest_point_sample(
+                        sample_points_xyz, npoint)
+                    fps_idx = torch.cat([fps_idx_ffps, fps_idx_dfps], dim=1)
+                else:
+                    raise NotImplementedError('Unsupported FPS mod!')
+
+                indices.append(fps_idx + last_fps_end_index)
+                last_fps_end_index += fps_sample_range
+
+            indices = torch.cat(indices, dim=1)
+            new_xyz = gather_points(xyz_flipped, indices).transpose(
+                1, 2).contiguous() if self.num_point is not None else None
 
         for i in range(len(self.groupers)):
             # (B, C, num_point, nsample)
@@ -152,6 +234,10 @@ class PointSAModule(PointSAModuleMSG):
             Default: True.
         pool_mod (str): Type of pooling method.
             Default: 'max_pool'.
+        fps_mod (list[str]: Type of FPS method, valid mod
+            ['F-FPS', 'D-FPS', 'FS'], Default: ['D-FPS'].
+        fps_sample_range_list (list[int]): Range of points to apply FPS.
+            Default: [-1].
         normalize_xyz (bool): Whether to normalize local XYZ with radius.
             Default: False.
     """
@@ -164,6 +250,8 @@ class PointSAModule(PointSAModuleMSG):
                  norm_cfg: dict = dict(type='BN2d'),
                  use_xyz: bool = True,
                  pool_mod: str = 'max',
+                 fps_mod: List[str] = ['D-FPS'],
+                 fps_sample_range_list: List[int] = [-1],
                  normalize_xyz: bool = False):
         super().__init__(
             mlp_channels=[mlp_channels],
@@ -173,4 +261,36 @@ class PointSAModule(PointSAModuleMSG):
             norm_cfg=norm_cfg,
             use_xyz=use_xyz,
             pool_mod=pool_mod,
+            fps_mod=fps_mod,
+            fps_sample_range_list=fps_sample_range_list,
             normalize_xyz=normalize_xyz)
+
+
+def calc_square_dist(point_feat_a, point_feat_b, norm=True):
+    """Calculating square distance between a and b.
+
+    Args:
+        a (Tensor): (B, N, C) Feature vector of each point.
+        b (Tensor): (B, M, C) Feature vector of each point.
+        norm (Bool): Whether to normalize the distance.
+            Default: True.
+
+    Returns:
+        Tensor: (B, N, M) Distance between each pair points.
+    """
+    length_a = point_feat_a.shape[1]
+    length_b = point_feat_b.shape[1]
+    num_channel = point_feat_a.shape[-1]
+    # [bs, n, 1]
+    a_square = torch.sum(point_feat_a.unsqueeze(dim=2).pow(2), dim=-1)
+    # [bs, 1, m]
+    b_square = torch.sum(point_feat_b.unsqueeze(dim=1).pow(2), dim=-1)
+    a_square = a_square.repeat((1, 1, length_b))  # [bs, n, m]
+    b_square = b_square.repeat((1, length_a, 1))  # [bs, n, m]
+
+    coor = torch.matmul(point_feat_a, point_feat_b.transpose(1, 2))
+
+    dist = a_square + b_square - 2 * coor
+    if norm:
+        dist = torch.sqrt(dist) / num_channel
+    return dist
