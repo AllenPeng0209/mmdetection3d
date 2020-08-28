@@ -267,33 +267,20 @@ class DeeprouteDataset(Custom3DDataset):
 
     def format_results(self,
                        outputs,
-                       pklfile_prefix=None,
                        ):
         """Format the results to pkl file.
 
         Args:
             outputs (list[dict]): Testing results of the dataset.
-            pklfile_prefix (str | None): The prefix of pkl files. It includes
-                the file path and the prefix of filename, e.g., "a/b/prefix".
-                If not specified, a temp file will be created. Default: None.
-            submission_prefix (str | None): The prefix of submitted files. It
-                includes the file path and the prefix of filename, e.g.,
-                "a/b/prefix". If not specified, a temp file will be created.
-                Default: None.
 
         Returns:
             tuple: (result_files, tmp_dir), result_files is a dict containing \
                 the json filepaths, tmp_dir is the temporal directory created \
                 for saving json files when jsonfile_prefix is not specified.
         """
-        if pklfile_prefix is None:
-            tmp_dir = tempfile.TemporaryDirectory()
-            pklfile_prefix = osp.join(tmp_dir.name, 'results')
-        else:
-            tmp_dir = None
 
         result_files = self.bbox2result_deeproute(outputs, self.CLASSES_EVAL,
-                                                  pklfile_prefix)
+                                                 )
         return result_files, tmp_dir
 
     def evaluate(self,

@@ -7,7 +7,7 @@ _base_ = [
 # cloud range accordingly
 point_cloud_range = [-80, -80, -5.0, 80.0, 80.0, 3.0]
 # For nuScenes we usually do 10-class detection
-class_names = []
+class_names = ['smallMot', 'bigMot', 'pedestrian', 'nonMot','TrafficCone']
 dataset_type = 'DeeprouteDataset'
 data_root = 'data/deeproute/'
 # Input modality for nuScenes dataset, this is consistent with the submission
@@ -69,7 +69,8 @@ data = dict(
     samples_per_gpu=1,
     workers_per_gpu=4,
     train=dict(
-        type='ClassSampledDataset',
+        #modify here to use sample and balance dataset
+        type = 'ClassSampledDataset',
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
