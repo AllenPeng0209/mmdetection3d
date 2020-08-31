@@ -26,7 +26,7 @@ class ClassSampledDataset(object):
                 [self.dataset.flag[ind] for ind in self.repeat_indices],
                 dtype=np.uint8)
         
-    def _get_repeat_indices(self, ann_file, dataset='nuscenes'):
+    def _get_repeat_indices(self, ann_file, dataset='deeproute'):
         """Load annotations from ann_file.
 
         Args:
