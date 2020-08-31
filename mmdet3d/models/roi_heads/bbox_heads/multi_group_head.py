@@ -374,7 +374,7 @@ class CenterHead(nn.Module):
 
         for task in self.tasks:
             ret_dicts.append(task(x))
-
+        embed()
         return ret_dicts
 
     def forward(self, feats):

@@ -46,7 +46,7 @@ model = dict(
             dict(num_class=2, class_names=['motorcycle', 'bicycle']),
             dict(num_class=2, class_names=['pedestrian', 'traffic_cone']),
         ],
-        weight=0.25,
+        #weight=0.25,
         common_heads={
             'reg': (2, 2),
             'height': (1, 2),
