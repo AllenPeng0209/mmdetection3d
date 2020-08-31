@@ -77,7 +77,10 @@ train_pipeline = [
         rot_range=[-0.3925, 0.3925],
         scale_ratio_range=[0.95, 1.05],
         translation_std=[0, 0, 0]),
-    dict(type='RandomFlip3D', flip_ratio_bev_horizontal=0.5),
+    dict(
+        type='RandomFlip3D',
+        flip_ratio_bev_horizontal=0.5,
+        flip_ratio_bev_vertical=0.5),
     dict(type='PointsRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
@@ -122,7 +125,7 @@ data = dict(
     samples_per_gpu=4,
     workers_per_gpu=4,
     train=dict(
-        type='ClassSampledDataset',
+        type='CBGSDataset',
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
@@ -162,13 +165,17 @@ optimizer = dict(type='AdamW', lr=0.001, weight_decay=0.01)
 # max_norm=10 is better for SECOND
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
-    policy='step',
-    warmup='linear',
-    warmup_iters=1000,
-    warmup_ratio=1.0 / 1000,
-    step=[16, 19, 20])
-momentum_config = None
+    policy='cyclic',
+    target_ratio=(10, 1e-4),
+    cyclic_times=1,
+    step_ratio_up=0.4,
+)
+momentum_config = dict(
+    policy='cyclic',
+    target_ratio=(0.85 / 0.95, 1),
+    cyclic_times=1,
+    step_ratio_up=0.4,
+)
+
 # runtime settings
 total_epochs = 20
-
-evaluation = dict(interval=24)

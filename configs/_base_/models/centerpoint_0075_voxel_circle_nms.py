@@ -1,21 +1,22 @@
-voxel_size = [0.1, 0.1, 0.2]
+voxel_size = [0.075, 0.075, 0.2]
+point_cloud_range = [-54, -54, -5.0, 54, 54, 3.0]
 model = dict(
     type='CenterPoint',
     pts_voxel_layer=dict(
-        max_num_points=64,
-        point_cloud_range=[-51.2, -51.2, -5.0, 51.2, 51.2, 3.0],
+        max_num_points=10,
+        point_cloud_range=point_cloud_range,
         voxel_size=voxel_size,
         max_voxels=(90000, 120000)),
     pts_voxel_encoder=dict(type='HardSimpleVFE', num_features=5),
     pts_middle_encoder=dict(
         type='SparseEncoder',
         in_channels=5,
-        sparse_shape=[40, 1024, 1024],
+        sparse_shape=[41, 1440, 1440],
+        output_channels=128,
         order=('conv', 'norm', 'act'),
         encoder_channels=((16, 16, 32), (32, 32, 64), (64, 64, 128), (128,
                                                                       128)),
-        encoder_paddings=((1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1,
-                                                                       1)),
+        encoder_paddings=((0, 0, 1), (0, 0, 1), (0, 0, [0, 1, 1]), (0, 0)),
         block_type='basicblock'),
     pts_backbone=dict(
         type='SECOND',
@@ -59,16 +60,18 @@ model = dict(
             post_center_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
             max_num=500,
             score_threshold=0.1,
-            pc_range=[-51.2, -51.2],
+            pc_range=point_cloud_range[:2],
             out_size_factor=8,
             voxel_size=voxel_size[:2],
             code_size=9),
-        dcn_head=False))
+        dcn_head=False,
+        loss_cls=dict(type='GaussianFocalLoss', reduction='sum'),
+        loss_reg=dict(type='L1Loss', reduction='none', loss_weight=0.25)))
 # model training and testing settings
 train_cfg = dict(
     pts=dict(
-        grid_size=[1024, 1024, 40],
-        point_cloud_range=[-51.2, -51.2, -5., 51.2, 51.2, 3.],
+        grid_size=[1440, 1440, 40],
+        point_cloud_range=point_cloud_range,
         voxel_size=voxel_size,
         out_size_factor=8,
         dense_reg=1,
@@ -85,7 +88,7 @@ test_cfg = dict(
         min_radius=[4, 12, 10, 1, 0.85, 0.175],
         post_max_size=83,
         score_threshold=0.1,
-        pc_range=[-51.2, -51.2],
+        pc_range=point_cloud_range[:2],
         out_size_factor=8,
         voxel_size=voxel_size[:2],
         nms_type='circle',
