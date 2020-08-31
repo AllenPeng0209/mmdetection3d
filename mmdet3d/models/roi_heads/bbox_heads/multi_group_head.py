@@ -11,7 +11,7 @@ from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu
 from mmdet.core import build_bbox_coder, multi_apply
 from mmdet.models import FeatureAdaption
 from ...builder import HEADS, build_loss
-
+from IPython import embed
 
 class CenterPointFeatureAdaption(FeatureAdaption):
     """Feature Adaption Module.
@@ -456,8 +456,12 @@ class CenterHead(nn.Module):
                 are valid.
         """
         device = gt_labels_3d.device
+        #deeproute change to different [1,3,4,5,6,4], check again
+        #gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center, 
+        #                          gt_bboxes_3d.tensor[:, [3, 5, 6, 7, 8, 6]]),
+        #                          dim=1).to(device)
         gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
-                                  gt_bboxes_3d.tensor[:, [3, 4, 5, 7, 8, 6]]),
+                                  gt_bboxes_3d.tensor[:, [1, 3, 4, 5, 6, 4]]),
                                  dim=1).to(device)
         gt_labels_3d += 1
         max_objs = self.train_cfg['max_objs'] * self.train_cfg['dense_reg']

@@ -8,7 +8,7 @@ model = dict(
         max_voxels=(30000, 40000)),
     pts_voxel_encoder=dict(
         type='PillarFeatureNet',
-        in_channels=5,
+        in_channels=3,
         feat_channels=[64],
         with_distance=False,
         voxel_size=(0.2, 0.2, 8),
@@ -38,12 +38,11 @@ model = dict(
         mode='3d',
         in_channels=sum([128, 128, 128]),
         tasks=[
-            dict(num_class=1, class_names=['car']),
-            dict(num_class=2, class_names=['truck', 'construction_vehicle']),
-            dict(num_class=2, class_names=['bus', 'trailer']),
-            dict(num_class=1, class_names=['barrier']),
-            dict(num_class=2, class_names=['motorcycle', 'bicycle']),
-            dict(num_class=2, class_names=['pedestrian', 'traffic_cone']),
+            dict(num_class=1, class_names=['smallMot']),
+            dict(num_class=1, class_names=['bigMot']),
+            dict(num_class=1, class_names=['pedestrain']),
+            dict(num_class=1, class_names=['nonMot']),
+            dict(num_class=1, class_names=['TrafficCone']),
         ],
         weight=0.25,
         common_heads={
@@ -67,8 +66,8 @@ model = dict(
 # model training and testing settings
 train_cfg = dict(
     pts=dict(
-        grid_size=[512, 512, 1],
-        point_cloud_range=[-51.2, -51.2, -5., 51.2, 51.2, 3.],
+        grid_size=[800, 800, 1],
+        point_cloud_range=[-80, -80, -5., 80, 80, 3.],
         voxel_size=voxel_size,
         out_size_factor=4,
         dense_reg=1,
@@ -85,7 +84,7 @@ test_cfg = dict(
         min_radius=[4, 12, 10, 1, 0.85, 0.175],
         post_max_size=83,
         score_threshold=0.1,
-        pc_range=[-51.2, -51.2],
+        pc_range=[-80, -80],
         out_size_factor=4,
         voxel_size=voxel_size[:2],
         nms_type='circle',

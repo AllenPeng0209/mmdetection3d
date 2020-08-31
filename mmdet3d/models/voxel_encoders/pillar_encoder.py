@@ -5,7 +5,7 @@ from torch import nn
 from mmdet3d.ops import DynamicScatter
 from ..registry import VOXEL_ENCODERS
 from .utils import PFNLayer, get_paddings_indicator
-
+from IPython import embed
 
 @VOXEL_ENCODERS.register_module()
 class PillarFeatureNet(nn.Module):
@@ -148,6 +148,7 @@ class PillarFeatureNet(nn.Module):
         features *= mask
 
         for pfn in self.pfn_layers:
+            
             features = pfn(features, num_points)
 
         return features.squeeze()
