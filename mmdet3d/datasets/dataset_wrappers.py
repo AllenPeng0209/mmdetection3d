@@ -18,7 +18,7 @@ class ClassSampledDataset(object):
     def __init__(self, dataset, ann_file):
         self.dataset = dataset
         self.CLASSES = dataset.CLASSES
-        self.repeat_indices = self._get_repeat_indices(ann_file)
+        self.repeat_indices = self._get_repeat_indices(ann_file, dataset=dataset.data_root[5:-1])
         #self.dataset.data_infos = self.data_infos
         
         if hasattr(self.dataset, 'flag'):
@@ -85,7 +85,7 @@ class ClassSampledDataset(object):
             repeat_indices = []
             frac = 1.0 / len(self.dataset.class_map)
             ratios = [frac / v for v in _cls_dist.values() if v!=0]
-            ratios = [x/sum(ratios) for x in ratios]
+            #ratios = [x/sum(ratios) for x in ratios]
             for cls_infos, ratio in zip(list(_cls_inds.values()), ratios):
                repeat_indices += np.random.choice(cls_infos, int(len(cls_infos) *
                                                                ratio)).tolist()              

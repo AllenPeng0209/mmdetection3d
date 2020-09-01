@@ -44,13 +44,12 @@ model = dict(
             dict(num_class=1, class_names=['nonMot']),
             dict(num_class=1, class_names=['TrafficCone']),
         ],
-        weight=0.25,
+        #weight=0.25,
         common_heads={
             'reg': (2, 2),
             'height': (1, 2),
             'dim': (3, 2),
             'rot': (2, 2),
-            'vel': (2, 2)
         },
         share_conv_channel=64,
         bbox_coder=dict(
@@ -75,7 +74,7 @@ train_cfg = dict(
         max_objs=500,
         min_radius=2,
         no_log=False,
-        code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2, 1.0, 1.0]))
+        code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 test_cfg = dict(
     pts=dict(
         post_center_limit_range=[-80.0, -80.0, -10.0, 80.0, 80.0, 10.0],

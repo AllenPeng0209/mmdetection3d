@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from mmcv.cnn import build_conv_layer, build_norm_layer, kaiming_init
 from torch import nn
-
+from IPython import embed
 from mmdet3d.core import (circle_nms, draw_heatmap_gaussian, gaussian_radius,
                           xywhr2xyxyr)
 from mmdet3d.models.utils import clip_sigmoid
@@ -11,7 +11,7 @@ from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu
 from mmdet.core import build_bbox_coder, multi_apply
 from mmdet.models import FeatureAdaption
 from ...builder import HEADS, build_loss
-from IPython import embed
+
 
 class CenterPointFeatureAdaption(FeatureAdaption):
     """Feature Adaption Module.
@@ -85,9 +85,9 @@ class SepHead(nn.Module):
         for head in self.heads:
             classes, num_conv = self.heads[head]
 
-            fc_layers = []
+            conv_layers = []
             for i in range(num_conv - 1):
-                fc_layers.append(
+                conv_layers.append(
                     build_conv_layer(
                         conv_cfg,
                         in_channels,
@@ -97,10 +97,11 @@ class SepHead(nn.Module):
                         padding=final_kernel // 2,
                         bias=True))
                 if norm_cfg:
-                    fc_layers.append(build_norm_layer(norm_cfg, head_conv)[1])
-                fc_layers.append(nn.ReLU(inplace=True))
+                    conv_layers.append(
+                        build_norm_layer(norm_cfg, head_conv)[1])
+                conv_layers.append(nn.ReLU(inplace=True))
 
-            fc_layers.append(
+            conv_layers.append(
                 build_conv_layer(
                     conv_cfg,
                     head_conv,
@@ -109,7 +110,7 @@ class SepHead(nn.Module):
                     stride=1,
                     padding=final_kernel // 2,
                     bias=True))
-            fc = nn.Sequential(*fc_layers)
+            fc = nn.Sequential(*conv_layers)
 
             self.__setattr__(head, fc)
 
@@ -146,7 +147,6 @@ class SepHead(nn.Module):
         ret_dict = dict()
         for head in self.heads:
             ret_dict[head] = self.__getattr__(head)(x)
-
         return ret_dict
 
 
@@ -228,6 +228,7 @@ class DCNSepHead(nn.Module):
 
         Returns:
             dict[str: torch.Tensor]: contains the following keys:
+
                     -reg （torch.Tensor): 2D regression value with the
                         shape of [B, 2, H, W].
                     -height (torch.Tensor): Height value with the
@@ -273,7 +274,7 @@ class CenterHead(nn.Module):
         init_bias (float): Initial bias. Default: -2.19.
         share_conv_channel (int): Output channels for share_conv_layer.
             Default: 64.
-        num_hm_conv (int): Number of conv layers for heatmap conv layer.
+        num_heatmap_convs (int): Number of conv layers for heatmap conv layer.
             Default: 2.
         dcn_head (bool): Whether to use dcn_head. Default: False.
         conv_cfg (dict): Config of conv layer.
@@ -289,13 +290,13 @@ class CenterHead(nn.Module):
                  train_cfg=None,
                  test_cfg=None,
                  bbox_coder=None,
-                 weight=0.25,
                  common_heads=dict(),
                  loss_cls=dict(type='CenterPointFocalLoss'),
-                 loss_reg=dict(type='L1Loss', reduction='none'),
+                 loss_reg=dict(
+                     type='L1Loss', reduction='none', loss_weight=0.25),
                  init_bias=-2.19,
                  share_conv_channel=64,
-                 num_hm_conv=2,
+                 num_heatmap_convs=2,
                  dcn_head=False,
                  conv_cfg=dict(type='Conv2d'),
                  norm_cfg=dict(type='BN2d')):
@@ -303,7 +304,6 @@ class CenterHead(nn.Module):
 
         num_classes = [len(t['class_names']) for t in tasks]
         self.class_names = [t['class_names'] for t in tasks]
-        self.weight = weight  # weight between hm loss and loc loss
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         self.encode_background_as_zeros = True
@@ -337,7 +337,7 @@ class CenterHead(nn.Module):
         for num_cls in num_classes:
             heads = copy.deepcopy(common_heads)
             if not dcn_head:
-                heads.update(dict(hm=(num_cls, num_hm_conv)))
+                heads.update(dict(hm=(num_cls, num_heatmap_convs)))
                 self.tasks.append(
                     SepHead(
                         share_conv_channel,
@@ -373,7 +373,6 @@ class CenterHead(nn.Module):
 
         for task in self.tasks:
             ret_dicts.append(task(x))
-
         return ret_dicts
 
     def forward(self, feats):
@@ -428,19 +427,19 @@ class CenterHead(nn.Module):
                 position of the valid boxes.
             list[torch.Tensor]: Masks indicating which boxes are valid.
         """
-        hms, anno_boxes, inds, masks = multi_apply(self.get_targets_single,
-                                                   gt_bboxes_3d, gt_labels_3d)
-        hms = np.array(hms).transpose(1, 0).tolist()
-        hms = [torch.stack(hms_) for hms_ in hms]
+        heatmaps, anno_boxes, inds, masks = multi_apply(
+            self.get_targets_single, gt_bboxes_3d, gt_labels_3d)
+        heatmaps = np.array(heatmaps).transpose(1, 0).tolist()
+        heatmaps = [torch.stack(hms_) for hms_ in heatmaps]
         anno_boxes = np.array(anno_boxes).transpose(1, 0).tolist()
         anno_boxes = [torch.stack(anno_boxes_) for anno_boxes_ in anno_boxes]
         inds = np.array(inds).transpose(1, 0).tolist()
         inds = [torch.stack(inds_) for inds_ in inds]
         masks = np.array(masks).transpose(1, 0).tolist()
         masks = [torch.stack(masks_) for masks_ in masks]
-        return hms, anno_boxes, inds, masks
+        return heatmaps, anno_boxes, inds, masks
 
-    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d):
+    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d, with_velocity=False):
         """Generate training targets for a single sample.
 
         Args:
@@ -456,13 +455,14 @@ class CenterHead(nn.Module):
                 are valid.
         """
         device = gt_labels_3d.device
-        #deeproute change to different [1,3,4,5,6,4], check again
-        #gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center, 
-        #                          gt_bboxes_3d.tensor[:, [3, 5, 6, 7, 8, 6]]),
-        #                          dim=1).to(device)
-        gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
-                                  gt_bboxes_3d.tensor[:, [1, 3, 4, 5, 6, 4]]),
-                                 dim=1).to(device)
+        if with_velocity: 
+            gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
+                                   gt_bboxes_3d.tensor[:, [3, 4, 5, 7, 8, 6]]),
+                                   dim=1).to(device)
+        else:
+            gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
+                                    gt_bboxes_3d.tensor[:, [3, 4, 5, 6]]), 
+                                    dim=1).to(device) 
         gt_labels_3d += 1
         max_objs = self.train_cfg['max_objs'] * self.train_cfg['dense_reg']
         grid_size = np.array(self.train_cfg['grid_size'])
@@ -497,11 +497,12 @@ class CenterHead(nn.Module):
         hms, anno_boxes, inds, masks = [], [], [], []
 
         for idx, task in enumerate(self.tasks):
+
             hm = gt_bboxes_3d.new_zeros(
                 (len(self.class_names[idx]), feature_map_size[1],
                  feature_map_size[0]))
 
-            anno_box = gt_bboxes_3d.new_zeros((max_objs, 10),
+            anno_box = gt_bboxes_3d.new_zeros((max_objs, 8),
                                               dtype=torch.float32)
 
             ind = gt_labels_3d.new_zeros((max_objs), dtype=torch.int64)
@@ -555,15 +556,17 @@ class CenterHead(nn.Module):
 
                     ind[new_idx] = y * feature_map_size[0] + x
                     mask[new_idx] = 1
-
-                    vx, vy = task_boxes[idx][k][6:8]
-                    rot = task_boxes[idx][k][8]
+                    if with_velocity:
+                        vx, vy = task_boxes[idx][k][6:8]
+                        rot = task_boxes[idx][k][8]
+                    else:
+                        rot = task_boxes[idx][k][6]
                     if not self.train_cfg['no_log']:
                         anno_box[new_idx] = torch.cat([
                             ct - torch.tensor([x, y], device=device),
                             z.unsqueeze(0), task_boxes[idx][k][3:6].log(),
-                            vx.unsqueeze(0),
-                            vy.unsqueeze(0),
+                            #vx.unsqueeze(0),
+                            #vy.unsqueeze(0),
                             torch.sin(rot).unsqueeze(0),
                             torch.cos(rot).unsqueeze(0)
                         ])
@@ -571,12 +574,13 @@ class CenterHead(nn.Module):
                         anno_box[new_idx] = torch.cat([
                             ct - torch.tensor([x, y], device=device),
                             z.unsqueeze(0), task_boxes[idx][k][3:6],
-                            vx.unsqueeze(0),
-                            vy.unsqueeze(0),
+                            #vx.unsqueeze(0),
+                            #vy.unsqueeze(0),
                             torch.sin(rot).unsqueeze(0),
                             torch.cos(rot).unsqueeze(0)
                         ],
                                                       dim=0)
+                     
 
             hms.append(hm)
             anno_boxes.append(anno_box)
@@ -600,12 +604,15 @@ class CenterHead(nn.Module):
             # heatmap focal loss
             preds_dict[0]['hm'] = clip_sigmoid(preds_dict[0]['hm'])
             hm_loss = self.loss_cls(preds_dict[0]['hm'], hms[task_id])
-
+            num_pos = hms[task_id].eq(1).float().sum()
+            if num_pos > 0:
+                hm_loss /= num_pos
             target_box = anno_boxes[task_id]
             # reconstruct the anno_box from multiple reg heads
             preds_dict[0]['anno_box'] = torch.cat(
                 (preds_dict[0]['reg'], preds_dict[0]['height'],
-                 preds_dict[0]['dim'], preds_dict[0]['vel'],
+                 preds_dict[0]['dim'], 
+                 #preds_dict[0]['vel'], don't predict vel in deeproute
                  preds_dict[0]['rot']),
                 dim=1)
 
@@ -622,9 +629,7 @@ class CenterHead(nn.Module):
                 num + 1e-4)
             code_weights = self.train_cfg.get('code_weights', [])
             loc_loss = (box_loss * box_loss.new_tensor(code_weights)).sum()
-            loss = hm_loss + self.weight * loc_loss
-            loss_dict[f'loss_task{task_id}'] = loss
-            loss_dict[f'hm_loss_task{task_id}'] = hm_loss.detach()
+            loss_dict[f'hm_loss_task{task_id}'] = hm_loss
             loss_dict[f'loc_loss_task{task_id}'] = loc_loss
 
         return loss_dict
@@ -655,7 +660,6 @@ class CenterHead(nn.Module):
 
             batch_rots = preds_dict[0]['rot'][:, 0].unsqueeze(1)
             batch_rotc = preds_dict[0]['rot'][:, 1].unsqueeze(1)
-
             if 'vel' in preds_dict[0]:
                 batch_vel = preds_dict[0]['vel']
             else:
@@ -709,7 +713,7 @@ class CenterHead(nn.Module):
             for k in rets[0][i].keys():
                 if k == 'bboxes':
                     bboxes = torch.cat([
-                        ret[i][k][:, [0, 1, 2, 3, 4, 5, 8, 6, 7]]
+                        ret[i][k][:, [0, 1, 2, 3, 4, 5, 6]]
                         for ret in rets
                     ])
                     bboxes[:, 2] = bboxes[:, 2] - bboxes[:, 5] * 0.5

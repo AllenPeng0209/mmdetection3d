@@ -106,7 +106,11 @@ class DeeprouteDataset(Custom3DDataset):
         # TODO : Modify the code to trainging and test split mode here
         
         if self.test_mode:
-            pts_filename = osp.join('./data/deeproute/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
+            self.valid_mode=True
+            if self.valid_mode:
+                pts_filename = osp.join('./data/deeproute/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
+            else:
+                pts_filename = osp.join('./data/deeproute/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
         else:
             pts_filename = osp.join('./data/deeproute/training', self.pts_prefix,idx[0],idx[1]+'.bin')
         return pts_filename
@@ -265,6 +269,7 @@ class DeeprouteDataset(Custom3DDataset):
 
     def format_results(self,
                        outputs,
+                       save_folder,
                        ):
         """Format the results to pkl file.
 
@@ -278,8 +283,8 @@ class DeeprouteDataset(Custom3DDataset):
         """
 
         result_files = self.bbox2result_deeproute(outputs, self.CLASSES_EVAL,
-                                                 )
-        return result_files, tmp_dir
+                                                 save_folder)
+        return result_files
 
     def evaluate(self,
                  results,
@@ -321,7 +326,6 @@ class DeeprouteDataset(Custom3DDataset):
     def bbox2result_deeproute(self,
                           net_outputs,
                           class_eval_names,
-                          evaluation_type ,
                           save_folder=None,
                           ):
         """Convert 3D detection results to deeproute format for evaluation and save to txt 
@@ -346,8 +350,7 @@ class DeeprouteDataset(Custom3DDataset):
             info = self.data_infos[idx]
             sample_idx = info['image']['image_idx']
             #image_shape = info['image']['image_shape'][:2]
-            
-            
+            pred_dicts = pred_dicts['pts_bbox'] 
             if len(pred_dicts['boxes_3d']) > 0:
                 scores = pred_dicts['scores_3d']
                 box_preds_lidar = pred_dicts['boxes_3d']
@@ -385,9 +388,9 @@ class DeeprouteDataset(Custom3DDataset):
 
             # TODO write file depend on config   
             #create the detection result directory for current experiment.
-            if not os.path.exists('./work_dirs/pp_secfpn_deeproute/evaluation/detections/'+sample_idx[0]):
-                os.makedirs('./work_dirs/pp_secfpn_deeproute/evaluation/detections/'+sample_idx[0])     
-            with open('./work_dirs/pp_secfpn_deeproute/evaluation/detections/'+sample_idx[0]+'/'+sample_idx[1]+'.txt', 'w') as f :
+            if not os.path.exists('./work_dirs/'+save_folder+'/evaluation/detections/'+sample_idx[0]):
+                os.makedirs('./work_dirs/'+save_folder+'/evaluation/detections/'+sample_idx[0])     
+            with open('./work_dirs/'+save_folder+'/evaluation/detections/'+sample_idx[0]+'/'+sample_idx[1]+'.txt', 'w') as f :
                     json.dump(annos, f ,ensure_ascii=False)
 
             print('Result is saved to prediction folder')
