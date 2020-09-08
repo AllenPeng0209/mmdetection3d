@@ -8,9 +8,8 @@ _base_ = [
 point_cloud_range = [-80, -80, -5.0, 80, 80, 3.0]
 # For nuScenes we usually do 10-class detection
 class_names = [
-    'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
-    'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
-]
+'CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN',
+'PEDESTRIAN_HARD', 'CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD','CONE']
 dataset_type = 'DeeprouteDataset'
 data_root = 'data/deeproute/'
 # Input modality for nuScenes dataset, this is consistent with the submission
@@ -30,36 +29,48 @@ db_sampler = dict(
     prepare=dict(
         filter_by_difficulty=[-1],
         filter_by_min_points=dict(
-            car=5,
-            truck=5,
-            bus=5,
-            trailer=5,
-            construction_vehicle=5,
-            traffic_cone=5,
-            barrier=5,
-            motorcycle=5,
-            bicycle=5,
-            pedestrian=5,
+            CAR=2,
+            CAR_HARD=2,
+            VAN=2,
+            VAN_HARD=2,
+            TRUCK=3,
+            TRUCK_HARD=3,
+            BIG_TRUCK=3,
+            BUS =3,
+            BUS_HARD=3,
+            PEDESTRIAN=4,
+            PEDESTRIAN_HARD=4,
+            CYCLIST=5,
+            CYCLIST_HARD=5,
+            TRICYCLE=5,
+            TRICYCLE_HARD=5,
+            CONE=6,
+
         )),
     classes=class_names,
-    '''
-    sample_groups=dict(
-        car=2,
-        truck=3,
-        construction_vehicle=7,
-        bus=4,
-        trailer=6,
-        barrier=2,
-        motorcycle=6,
-        bicycle=6,
-        pedestrian=2,
-        traffic_cone=2,
+    sample_groups=dict( 
+            CAR=2,
+            CAR_HARD=2,
+            VAN=2,
+            VAN_HARD=2,
+            TRUCK=3,
+            TRUCK_HARD=3,
+            BIG_TRUCK=3,
+            BUS =3,
+            BUS_HARD=3,
+            PEDESTRIAN=4,
+            PEDESTRIAN_HARD=4,
+            CYCLIST=5,
+            CYCLIST_HARD=5,
+            TRICYCLE=5,
+            TRICYCLE_HARD=5,
+            CONE=6,
+
     ),
-    '''
     points_loader=dict(
         type='LoadPointsFromFile',
         load_dim=3,
-        use_dim=[0, 1, 2, 3, 4],
+        use_dim=[0, 1, 2],
         file_client_args=file_client_args))
 
 train_pipeline = [
@@ -68,15 +79,6 @@ train_pipeline = [
         load_dim=3,
         use_dim=3,
         file_client_args=file_client_args),
-    '''
-    dict(
-        type='LoadPointsFromMultiSweeps',
-        sweeps_num=9,
-        use_dim=[0, 1, 2, 3, 4],
-        file_client_args=file_client_args,
-        pad_empty_sweeps=True,
-        remove_close=True),
-    '''
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
     dict(type='ObjectSample', db_sampler=db_sampler),
     dict(
@@ -102,15 +104,6 @@ test_pipeline = [
         load_dim=5,
         use_dim=5,
         file_client_args=file_client_args),
-    '''
-    dict(
-        type='LoadPointsFromMultiSweeps',
-        sweeps_num=9,
-        use_dim=[0, 1, 2, 3, 4],
-        file_client_args=file_client_args,
-        pad_empty_sweeps=True,
-        remove_close=True),
-    '''
     dict(
         type='MultiScaleFlipAug3D',
         img_scale=(1333, 800),
@@ -134,7 +127,7 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=2,
     workers_per_gpu=4,
     train=dict(
         type='CBGSDataset',
@@ -146,7 +139,7 @@ data = dict(
             classes=class_names,
             modality=input_modality,
             test_mode=False,
-            use_valid_flag=True,
+            #use_valid_flag=True,
             # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
             # and box_type_3d='Depth' in sunrgbd and scannet dataset.
             box_type_3d='LiDAR')),

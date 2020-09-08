@@ -44,8 +44,12 @@ class DeeprouteDataset(Custom3DDataset):
         test_mode (bool, optional): Whether the dataset is in test mode.
             Defaults to False.
     """
-    CLASSES = ('smallMot', 'bigMot', 'pedestrian', 'nonMot','TrafficCone')
-    CLASSES_EVAL = ("car", "car", "pedestrian", "cyclist", "cone")
+    #CLASSES = ('smallMot', 'bigMot', 'pedestrian', 'nonMot','TrafficCone')
+    CLASSES = ('CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN', 'PEDESTRIAN_HARD', 'CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD','CONE')
+    #CLASSES_EVAL = ("car", "car", "pedestrian", "cyclist", "cone")
+    CLASSES_EVAL = ('car','car','car','car','car','car','car','car','car','pedestrian', 'pedestrian', 'cyclist','cyclist','cyclist','cyclist','cone')
+
+
     class_map = {
         "CAR":"smallMot",
         "VAN":"smallMot",
@@ -57,7 +61,6 @@ class DeeprouteDataset(Custom3DDataset):
         "BUS_HARD":"bigMot",
         "PEDESTRIAN":"pedestrian",
         "CYCLIST":"nonMot",
-        "TRICYCLE":"nonMot",
         "TRICYCLE":"nonMot",
         "TRICYCLE_HARD":"nonMot",
         "CAR_HARD":"smallMot",
@@ -93,7 +96,14 @@ class DeeprouteDataset(Custom3DDataset):
         assert self.modality is not None
         self.pcd_limit_range = [-80, -80, -3, 80, 80, 1.0]
         self.pts_prefix = pts_prefix
-
+    def get_cat_ids(self, idx):
+        class_sample_idx = {name:[] for name in self.class_map}    
+        info = self.data_infos[idx]
+        gt_names = set(info['annos']['type'])
+        for name in gt_names:
+            if name in self.class_map:  
+               class_sample_idx[name].append(idx) 
+        return class_sample_idx
     def _get_pts_filename(self, idx):
         """Get point cloud filename according to the given index.
 
@@ -206,7 +216,7 @@ class DeeprouteDataset(Custom3DDataset):
         gt_labels = []
         for cat in gt_names:
             if cat in self.class_map:
-                gt_labels.append(self.CLASSES.index(self.class_map[cat]))
+                gt_labels.append(self.CLASSES.index(cat))
             else:
                 gt_labels.append(-1)
         gt_labels = np.array(gt_labels)

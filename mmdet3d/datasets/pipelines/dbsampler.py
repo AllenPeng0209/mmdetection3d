@@ -2,7 +2,7 @@ import copy
 import mmcv
 import numpy as np
 import os
-
+from IPython import embed
 from mmdet3d.core.bbox import box_np_ops
 from mmdet3d.datasets.pipelines import data_augment_utils
 from mmdet.datasets import PIPELINES
@@ -209,6 +209,7 @@ class DataBaseSampler(object):
         sample_num_per_class = []
         for class_name, max_sample_num in zip(self.sample_classes,
                                               self.sample_max_nums):
+            
             class_label = self.cat2label[class_name]
             # sampled_num = int(max_sample_num -
             #                   np.sum([n == class_name for n in gt_names]))

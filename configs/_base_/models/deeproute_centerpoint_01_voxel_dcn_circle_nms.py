@@ -11,7 +11,7 @@ model = dict(
     pts_middle_encoder=dict(
         type='SparseEncoder',
         in_channels=5,
-        sparse_shape=[41, 1440, 1440],
+        sparse_shape=[41, 1600, 1600],
         output_channels=128,
         order=('conv', 'norm', 'act'),
         encoder_channels=((16, 16, 32), (32, 32, 64), (64, 64, 128), (128,
@@ -39,11 +39,11 @@ model = dict(
         mode='3d',
         in_channels=sum([256, 256]),
         tasks=[
-            dict(num_class=1, class_names=['smallmot']),
-            dict(num_class=1, class_names=['bigmot']),
-            dict(num_class=1, class_names=['pedestrian']),
-            dict(num_class=1, class_names=['nonmot']),
-            dict(num_class=1, class_names=['cone']),
+            dict(num_class=4, class_names=['CAR','CAR_HARD','VAN','VAN_HARD']),
+            dict(num_class=5, class_names=['TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD']),
+            dict(num_class=2, class_names=['PEDESTRIAN', 'PEDESTRIAN_HARD']),
+            dict(num_class=4, class_names=['CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD']),
+            dict(num_class=1, class_names=['CONE']),
         ],
         common_heads={
             'reg': (2, 2),
@@ -75,7 +75,7 @@ train_cfg = dict(
         gaussian_overlap=0.1,
         max_objs=500,
         min_radius=2,
-        code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2, 1.0, 1.0],
+        code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         no_log=False))
 test_cfg = dict(
     pts=dict(

@@ -18,7 +18,8 @@ class CBGSDataset(object):
     def __init__(self, dataset):
         self.dataset = dataset
         self.CLASSES = dataset.CLASSES
-        self.repeat_indices = self._get_repeat_indices(ann_file, dataset=dataset.data_root[5:-1])
+        #self.repeat_indices = self._get_repeat_indices(ann_file, dataset=dataset.data_root[5:-1])
+        self.sample_indices = self._get_sample_indices()
         #self.dataset.data_infos = self.data_infos
         
         if hasattr(self.dataset, 'flag'):
@@ -26,7 +27,8 @@ class CBGSDataset(object):
                 [self.dataset.flag[ind] for ind in self.sample_indices],
                 dtype=np.uint8)
         
-    def _get_repeat_indices(self, ann_file, dataset='deeproute'):
+    #def _get_repeat_indices(self, ann_file, dataset='deeproute'):
+    def _get_sample_indices(self):
         """Load annotations from ann_file.
 
         Args:
@@ -35,12 +37,11 @@ class CBGSDataset(object):
         Returns:
             list[dict]: List of annotations after class sampling.
         """
-
-        """
-        class_sample_idxs = {name: [] for name in self.CLASSES}
+        class_sample_idxs = {name: [] for name in self.dataset.class_map}
         for idx in range(len(self.dataset)):
             class_sample_idx = self.dataset.get_cat_ids(idx)
             for key in class_sample_idxs.keys():
+                
                 class_sample_idxs[key] += class_sample_idx[key]
         duplicated_samples = sum(
             [len(v) for _, v in class_sample_idxs.items()])
@@ -56,10 +57,10 @@ class CBGSDataset(object):
         for cls_inds, ratio in zip(list(class_sample_idxs.values()), ratios):
             sample_indices += np.random.choice(cls_inds,
                                                int(len(cls_inds) *
-                                                   ratio)).tolist()
+                                                   min(ratio,3))).tolist()
         return sample_indices
-        """
-         
+        
+        '''
         if dataset == 'nuscenes':
             data = mmcv.load(ann_file)
             _cls_inds = {name: [] for name in self.CLASSES}
@@ -115,7 +116,7 @@ class CBGSDataset(object):
                repeat_indices += np.random.choice(cls_infos, int(len(cls_infos) *
                                                                ratio)).tolist()              
         return repeat_indices
-
+        '''
     def __getitem__(self, idx):
         """Get item from infos according to the given index.
 

@@ -8,9 +8,7 @@ _base_ = [
 point_cloud_range = [-54, -54, -5.0, 54, 54, 3.0]
 # For nuScenes we usually do 10-class detection
 class_names = [
-    'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
-    'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
-]
+    'smallMot', 'bigMot', 'pedestrian', 'nonMot', 'TrafficCone']
 dataset_type = 'NuScenesDataset'
 data_root = 'data/nuscenes/'
 # Input modality for nuScenes dataset, this is consistent with the submission
@@ -30,29 +28,42 @@ db_sampler = dict(
     prepare=dict(
         filter_by_difficulty=[-1],
         filter_by_min_points=dict(
-            car=5,
-            truck=5,
-            bus=5,
-            trailer=5,
-            construction_vehicle=5,
-            traffic_cone=5,
-            barrier=5,
-            motorcycle=5,
-            bicycle=5,
-            pedestrian=5,
+            CAR=2,
+            CAR_HARD=2
+            VAN=2,
+            VAN_HARD=2,
+            TRUCK=3,
+            TRUCK_HARD=3,
+            BIG_TRUCK=3,
+            BUS =3,
+            BUS_HARD=3,
+            PEDESTRIAN=4,
+            PEDESTRIAN_HARD=4,
+            CYCLIST=5,
+            CYCLIST_HARD=5,
+            TRICYCLE=5,
+            TRICYCLE_HARD=5,
+            CONE=6,
+
         )),
     classes=class_names,
     sample_groups=dict(
-        car=2,
-        truck=3,
-        construction_vehicle=7,
-        bus=4,
-        trailer=6,
-        barrier=2,
-        motorcycle=6,
-        bicycle=6,
-        pedestrian=2,
-        traffic_cone=2,
+        CAR=2,
+        CAR_HARD=2
+        VAN=2,
+        VAN_HARD=2,
+        TRUCK=3,
+        TRUCK_HARD=3,
+        BIG_TRUCK=3,
+        BUS=3,
+        BUS_HARD=3,
+        PEDESTRIAN=4,
+        PEDESTRIAN_HARD=4,
+        CYCLIST=5,
+        CYCLIST_HARD=5,
+        TRICYCLE=5,
+        TRICYCLE_HARD=5,
+        CONE=6,
     ),
     points_loader=dict(
         type='LoadPointsFromFile',
