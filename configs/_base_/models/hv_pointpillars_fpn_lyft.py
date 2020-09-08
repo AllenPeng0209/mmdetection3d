@@ -14,7 +14,7 @@ model = dict(
         feat_channels=[64], point_cloud_range=[-80, -80, -5, 80, 80, 3]),
     pts_middle_encoder=dict(output_shape=[640, 640]),
     pts_bbox_head=dict(
-        num_classes=9,
+        num_classes=5,
         anchor_generator=dict(
             ranges=[[-80, -80, -1.8, 80, 80, -1.8]], custom_values=[]),
         bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder', code_size=7)))

@@ -5,7 +5,7 @@ from mmdet3d.core.bbox import bbox_overlaps_nearest_3d
 from mmdet.models import HEADS
 from .anchor3d_head import Anchor3DHead
 from .train_mixins import get_direction_target
-
+from IPython import embed
 
 @HEADS.register_module()
 class FreeAnchor3DHead(Anchor3DHead):
@@ -67,9 +67,10 @@ class FreeAnchor3DHead(Anchor3DHead):
                 - positive_bag_loss (torch.Tensor): Loss of positive samples.
                 - negative_bag_loss (torch.Tensor): Loss of negative samples.
         """
+       
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
-
+        
         anchor_list = self.get_anchors(featmap_sizes, input_metas)
         anchors = [torch.cat(anchor) for anchor in anchor_list]
 
@@ -160,7 +161,7 @@ class FreeAnchor3DHead(Anchor3DHead):
                 # end
 
                 box_prob.append(image_box_prob)
-
+            
             # construct bags for objects
             match_quality_matrix = bbox_overlaps_nearest_3d(
                 gt_bboxes_, anchors_)
@@ -196,7 +197,6 @@ class FreeAnchor3DHead(Anchor3DHead):
                     dir_cls_preds_[matched].transpose(-2, -1),
                     matched_dir_targets,
                     reduction_override='none')
-
             # generate bbox weights
             if self.diff_rad_by_sin:
                 bbox_preds_[matched], matched_object_targets = \
@@ -217,9 +217,12 @@ class FreeAnchor3DHead(Anchor3DHead):
             if loss_dir is not None:
                 loss_bbox += loss_dir
             matched_box_prob = torch.exp(-loss_bbox)
-
+            #deeproute change
+            #matched_box_prob = loss_bbox
             # positive_losses: {-log( Mean-max(P_{ij}^{cls} * P_{ij}^{loc}) )}
             num_pos += len(gt_bboxes_)
+            if torch.isnan(matched_box_prob).any():
+                embed()
             positive_losses.append(
                 self.positive_bag_loss(matched_cls_prob, matched_box_prob))
 
@@ -232,7 +235,6 @@ class FreeAnchor3DHead(Anchor3DHead):
         # \sum_{j}{ FL((1 - P{a_{j} \in A_{+}}) * (1 - P_{j}^{bg})) } / n||B||
         negative_loss = self.negative_bag_loss(cls_prob, box_prob).sum() / max(
             1, num_pos * self.pre_anchor_topk)
-
         losses = {
             'positive_bag_loss': positive_loss,
             'negative_bag_loss': negative_loss
@@ -258,6 +260,9 @@ class FreeAnchor3DHead(Anchor3DHead):
         bag_prob = (weight * matched_prob).sum(dim=1)
         # positive_bag_loss = -self.alpha * log(bag_prob)
         bag_prob = bag_prob.clamp(0, 1)  # to avoid bug of BCE, check
+        if torch.isnan(bag_prob).any():
+            embed()
+
         return self.alpha * F.binary_cross_entropy(
             bag_prob, torch.ones_like(bag_prob), reduction='none')
 
@@ -277,4 +282,6 @@ class FreeAnchor3DHead(Anchor3DHead):
         prob = prob.clamp(0, 1)  # to avoid bug of BCE, check
         negative_bag_loss = prob**self.gamma * F.binary_cross_entropy(
             prob, torch.zeros_like(prob), reduction='none')
+        if torch.isnan(prob).any():
+            embed()
         return (1 - self.alpha) * negative_bag_loss

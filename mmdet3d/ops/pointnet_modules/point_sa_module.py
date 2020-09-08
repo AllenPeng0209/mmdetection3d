@@ -3,7 +3,6 @@ from mmcv.cnn import ConvModule
 from torch import nn as nn
 from torch.nn import functional as F
 from typing import List
-
 from mmdet3d.ops import GroupAll, Points_Sampler, QueryAndGroup, gather_points
 from .registry import SA_MODULES
 
@@ -32,6 +31,13 @@ class PointSAModuleMSG(nn.Module):
             Default: True.
         pool_mod (str): Type of pooling method.
             Default: 'max_pool'.
+        fps_mod (list[str]: Type of FPS method, valid mod
+            ['F-FPS', 'D-FPS', 'FS'], Default: ['D-FPS'].
+            F-FPS: using feature distances for FPS.
+            D-FPS: using Euclidean distances of points for FPS.
+            FS: using F-FPS and D-FPS simultaneously.
+        fps_sample_range_list (list[int]): Range of points to apply FPS.
+            Default: [-1].
         normalize_xyz (bool): Whether to normalize local XYZ with radius.
             Default: False.
     """
@@ -72,7 +78,6 @@ class PointSAModuleMSG(nn.Module):
         self.mlps = nn.ModuleList()
         self.fps_mod_list = fps_mod
         self.fps_sample_range_list = fps_sample_range_list
-
         self.points_sampler = Points_Sampler(self.num_point, self.fps_mod_list,
                                              self.fps_sample_range_list)
 
@@ -218,3 +223,33 @@ class PointSAModule(PointSAModuleMSG):
             fps_mod=fps_mod,
             fps_sample_range_list=fps_sample_range_list,
             normalize_xyz=normalize_xyz)
+
+
+def calc_square_dist(point_feat_a, point_feat_b, norm=True):
+    """Calculating square distance between a and b.
+
+    Args:
+        a (Tensor): (B, N, C) Feature vector of each point.
+        b (Tensor): (B, M, C) Feature vector of each point.
+        norm (Bool): Whether to normalize the distance.
+            Default: True.
+
+    Returns:
+        Tensor: (B, N, M) Distance between each pair points.
+    """
+    length_a = point_feat_a.shape[1]
+    length_b = point_feat_b.shape[1]
+    num_channel = point_feat_a.shape[-1]
+    # [bs, n, 1]
+    a_square = torch.sum(point_feat_a.unsqueeze(dim=2).pow(2), dim=-1)
+    # [bs, 1, m]
+    b_square = torch.sum(point_feat_b.unsqueeze(dim=1).pow(2), dim=-1)
+    a_square = a_square.repeat((1, 1, length_b))  # [bs, n, m]
+    b_square = b_square.repeat((1, length_a, 1))  # [bs, n, m]
+
+    coor = torch.matmul(point_feat_a, point_feat_b.transpose(1, 2))
+
+    dist = a_square + b_square - 2 * coor
+    if norm:
+        dist = torch.sqrt(dist) / num_channel
+    return dist

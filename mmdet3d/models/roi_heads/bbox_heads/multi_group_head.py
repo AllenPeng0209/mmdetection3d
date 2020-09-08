@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from mmcv.cnn import build_conv_layer, build_norm_layer, kaiming_init
 from torch import nn
-
+from IPython import embed
 from mmdet3d.core import (circle_nms, draw_heatmap_gaussian, gaussian_radius,
                           xywhr2xyxyr)
 from mmdet3d.models.utils import clip_sigmoid
@@ -147,7 +147,6 @@ class SepHead(nn.Module):
         ret_dict = dict()
         for head in self.heads:
             ret_dict[head] = self.__getattr__(head)(x)
-
         return ret_dict
 
 
@@ -374,7 +373,6 @@ class CenterHead(nn.Module):
 
         for task in self.tasks:
             ret_dicts.append(task(x))
-
         return ret_dicts
 
     def forward(self, feats):
@@ -441,7 +439,7 @@ class CenterHead(nn.Module):
         masks = [torch.stack(masks_) for masks_ in masks]
         return heatmaps, anno_boxes, inds, masks
 
-    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d):
+    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d, with_velocity=False):
         """Generate training targets for a single sample.
 
         Args:
@@ -457,9 +455,14 @@ class CenterHead(nn.Module):
                 are valid.
         """
         device = gt_labels_3d.device
-        gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
-                                  gt_bboxes_3d.tensor[:, [3, 4, 5, 7, 8, 6]]),
-                                 dim=1).to(device)
+        if with_velocity: 
+            gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
+                                   gt_bboxes_3d.tensor[:, [3, 4, 5, 7, 8, 6]]),
+                                   dim=1).to(device)
+        else:
+            gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
+                                    gt_bboxes_3d.tensor[:, [3, 4, 5, 6]]), 
+                                    dim=1).to(device) 
         gt_labels_3d += 1
         max_objs = self.train_cfg['max_objs'] * self.train_cfg['dense_reg']
         grid_size = np.array(self.train_cfg['grid_size'])
@@ -494,11 +497,12 @@ class CenterHead(nn.Module):
         hms, anno_boxes, inds, masks = [], [], [], []
 
         for idx, task in enumerate(self.tasks):
+
             hm = gt_bboxes_3d.new_zeros(
                 (len(self.class_names[idx]), feature_map_size[1],
                  feature_map_size[0]))
 
-            anno_box = gt_bboxes_3d.new_zeros((max_objs, 10),
+            anno_box = gt_bboxes_3d.new_zeros((max_objs, 8),
                                               dtype=torch.float32)
 
             ind = gt_labels_3d.new_zeros((max_objs), dtype=torch.int64)
@@ -552,15 +556,17 @@ class CenterHead(nn.Module):
 
                     ind[new_idx] = y * feature_map_size[0] + x
                     mask[new_idx] = 1
-                    # TODO: support other outdoor dataset
-                    vx, vy = task_boxes[idx][k][6:8]
-                    rot = task_boxes[idx][k][8]
+                    if with_velocity:
+                        vx, vy = task_boxes[idx][k][6:8]
+                        rot = task_boxes[idx][k][8]
+                    else:
+                        rot = task_boxes[idx][k][6]
                     if not self.train_cfg['no_log']:
                         anno_box[new_idx] = torch.cat([
                             ct - torch.tensor([x, y], device=device),
                             z.unsqueeze(0), task_boxes[idx][k][3:6].log(),
-                            vx.unsqueeze(0),
-                            vy.unsqueeze(0),
+                            #vx.unsqueeze(0),
+                            #vy.unsqueeze(0),
                             torch.sin(rot).unsqueeze(0),
                             torch.cos(rot).unsqueeze(0)
                         ])
@@ -568,12 +574,13 @@ class CenterHead(nn.Module):
                         anno_box[new_idx] = torch.cat([
                             ct - torch.tensor([x, y], device=device),
                             z.unsqueeze(0), task_boxes[idx][k][3:6],
-                            vx.unsqueeze(0),
-                            vy.unsqueeze(0),
+                            #vx.unsqueeze(0),
+                            #vy.unsqueeze(0),
                             torch.sin(rot).unsqueeze(0),
                             torch.cos(rot).unsqueeze(0)
                         ],
                                                       dim=0)
+                     
 
             hms.append(hm)
             anno_boxes.append(anno_box)
@@ -620,7 +627,8 @@ class CenterHead(nn.Module):
             # reconstruct the anno_box from multiple reg heads
             preds_dict[0]['anno_box'] = torch.cat(
                 (preds_dict[0]['reg'], preds_dict[0]['height'],
-                 preds_dict[0]['dim'], preds_dict[0]['vel'],
+                 preds_dict[0]['dim'], 
+                 #preds_dict[0]['vel'], don't predict vel in deeproute
                  preds_dict[0]['rot']),
                 dim=1)
 
@@ -668,7 +676,6 @@ class CenterHead(nn.Module):
 
             batch_rots = preds_dict[0]['rot'][:, 0].unsqueeze(1)
             batch_rotc = preds_dict[0]['rot'][:, 1].unsqueeze(1)
-
             if 'vel' in preds_dict[0]:
                 batch_vel = preds_dict[0]['vel']
             else:
@@ -722,7 +729,7 @@ class CenterHead(nn.Module):
             for k in rets[0][i].keys():
                 if k == 'bboxes':
                     bboxes = torch.cat([
-                        ret[i][k][:, [0, 1, 2, 3, 4, 5, 8, 6, 7]]
+                        ret[i][k][:, [0, 1, 2, 3, 4, 5, 6]]
                         for ret in rets
                     ])
                     bboxes[:, 2] = bboxes[:, 2] - bboxes[:, 5] * 0.5

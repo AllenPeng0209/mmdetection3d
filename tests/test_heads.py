@@ -781,88 +781,14 @@ def test_dcn_center_head():
 
 
 def test_h3d_head():
-    if not torch.cuda.is_available():
-        pytest.skip('test requires GPU and torch+cuda')
-    _setup_seed(0)
+    batch_cls_labels = torch.zeros([100]).cuda()
+    batch_cls_preds = torch.rand([100]).cuda()
+    batch_reg_preds = torch.rand([100, 9]).cuda()
+    img_metas = [dict(box_type_3d=LiDARInstance3DBoxes) for _ in range(100)]
+    predictions_dicts = dcn_center_head.get_task_detections(
+        1, [batch_cls_preds], [batch_reg_preds], [batch_cls_labels], img_metas)
+    bboxes = predictions_dicts[0]['bboxes']
+    scores = predictions_dicts[0]['scores']
+    labels = predictions_dicts[0]['labels']
 
-    h3d_head_cfg = _get_roi_head_cfg('h3dnet/h3dnet_8x3_scannet-3d-18class.py')
-    self = build_head(h3d_head_cfg).cuda()
-
-    # prepare roi outputs
-    fp_xyz = [torch.rand([1, 1024, 3], dtype=torch.float32).cuda()]
-    hd_features = torch.rand([1, 256, 1024], dtype=torch.float32).cuda()
-    fp_indices = [torch.randint(0, 128, [1, 1024]).cuda()]
-    aggregated_points = torch.rand([1, 256, 3], dtype=torch.float32).cuda()
-    aggregated_features = torch.rand([1, 128, 256], dtype=torch.float32).cuda()
-    proposal_list = torch.cat([
-        torch.rand([1, 256, 3], dtype=torch.float32).cuda() * 4 - 2,
-        torch.rand([1, 256, 3], dtype=torch.float32).cuda() * 4,
-        torch.zeros([1, 256, 1]).cuda()
-    ],
-                              dim=-1)
-
-    input_dict = dict(
-        fp_xyz_net0=fp_xyz,
-        hd_feature=hd_features,
-        aggregated_points=aggregated_points,
-        aggregated_features=aggregated_features,
-        seed_points=fp_xyz[0],
-        seed_indices=fp_indices[0],
-        proposal_list=proposal_list)
-
-    # prepare gt label
-    from mmdet3d.core.bbox import DepthInstance3DBoxes
-    gt_bboxes_3d = [
-        DepthInstance3DBoxes(torch.rand([4, 7], dtype=torch.float32).cuda()),
-        DepthInstance3DBoxes(torch.rand([4, 7], dtype=torch.float32).cuda())
-    ]
-    gt_labels_3d = torch.randint(0, 18, [1, 4]).cuda()
-    gt_labels_3d = [gt_labels_3d[0]]
-    pts_semantic_mask = torch.randint(0, 19, [1, 1024]).cuda()
-    pts_semantic_mask = [pts_semantic_mask[0]]
-    pts_instance_mask = torch.randint(0, 4, [1, 1024]).cuda()
-    pts_instance_mask = [pts_instance_mask[0]]
-    points = torch.rand([1, 1024, 3], dtype=torch.float32).cuda()
-
-    # prepare rpn targets
-    vote_targets = torch.rand([1, 1024, 9], dtype=torch.float32).cuda()
-    vote_target_masks = torch.rand([1, 1024], dtype=torch.float32).cuda()
-    size_class_targets = torch.rand([1, 256],
-                                    dtype=torch.float32).cuda().long()
-    size_res_targets = torch.rand([1, 256, 3], dtype=torch.float32).cuda()
-    dir_class_targets = torch.rand([1, 256], dtype=torch.float32).cuda().long()
-    dir_res_targets = torch.rand([1, 256], dtype=torch.float32).cuda()
-    center_targets = torch.rand([1, 4, 3], dtype=torch.float32).cuda()
-    mask_targets = torch.rand([1, 256], dtype=torch.float32).cuda().long()
-    valid_gt_masks = torch.rand([1, 4], dtype=torch.float32).cuda()
-    objectness_targets = torch.rand([1, 256],
-                                    dtype=torch.float32).cuda().long()
-    objectness_weights = torch.rand([1, 256], dtype=torch.float32).cuda()
-    box_loss_weights = torch.rand([1, 256], dtype=torch.float32).cuda()
-    valid_gt_weights = torch.rand([1, 4], dtype=torch.float32).cuda()
-
-    targets = (vote_targets, vote_target_masks, size_class_targets,
-               size_res_targets, dir_class_targets, dir_res_targets,
-               center_targets, mask_targets, valid_gt_masks,
-               objectness_targets, objectness_weights, box_loss_weights,
-               valid_gt_weights)
-
-    input_dict['targets'] = targets
-
-    # train forward
-    ret_dict = self.forward_train(
-        input_dict,
-        points=points,
-        gt_bboxes_3d=gt_bboxes_3d,
-        gt_labels_3d=gt_labels_3d,
-        pts_semantic_mask=pts_semantic_mask,
-        pts_instance_mask=pts_instance_mask,
-        img_metas=None)
-
-    assert ret_dict['flag_loss_z'] >= 0
-    assert ret_dict['vote_loss_z'] >= 0
-    assert ret_dict['center_loss_z'] >= 0
-    assert ret_dict['size_loss_z'] >= 0
-    assert ret_dict['sem_loss_z'] >= 0
-    assert ret_dict['objectness_loss_optimized'] >= 0
-    assert ret_dict['primitive_sem_matching_loss'] >= 0
+    assert bboxes.shape[0] == scores.shape[0] == labels.shape[0]
