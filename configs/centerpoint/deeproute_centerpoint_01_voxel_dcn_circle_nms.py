@@ -155,7 +155,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_test.pkl',
+        ann_file=data_root + 'deeproute_infos_val.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -185,3 +185,4 @@ momentum_config = dict(
 
 # runtime settings
 total_epochs = 20
+evaluation = dict(interval=20)

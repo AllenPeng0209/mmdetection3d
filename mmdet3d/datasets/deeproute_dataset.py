@@ -82,7 +82,8 @@ class DeeprouteDataset(Custom3DDataset):
                  modality=None,
                  box_type_3d='LiDAR',
                  filter_empty_gt=True,
-                 test_mode=False):
+                 test_mode=False,
+                 valid_mode=True):
         super().__init__(
             data_root=data_root,
             ann_file=ann_file,
@@ -91,9 +92,11 @@ class DeeprouteDataset(Custom3DDataset):
             modality=modality,
             box_type_3d=box_type_3d,
             filter_empty_gt=filter_empty_gt,
-            test_mode=test_mode)
+            test_mode=test_mode,
+            )
 
         assert self.modality is not None
+        self.valid_mode= valid_mode
         self.pcd_limit_range = [-80, -80, -3, 80, 80, 1.0]
         self.pts_prefix = pts_prefix
     def get_cat_ids(self, idx):
@@ -116,7 +119,6 @@ class DeeprouteDataset(Custom3DDataset):
         # TODO : Modify the code to trainging and test split mode here
         
         if self.test_mode:
-            self.valid_mode=False
             if self.valid_mode:
                 pts_filename = osp.join('./data/deeproute/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
             else:
@@ -359,7 +361,6 @@ class DeeprouteDataset(Custom3DDataset):
             annos={}
             info = self.data_infos[idx]
             sample_idx = info['image']['image_idx']
-            #image_shape = info['image']['image_shape'][:2]
             pred_dicts = pred_dicts['pts_bbox'] 
             if len(pred_dicts['boxes_3d']) > 0:
                 scores = pred_dicts['scores_3d']
@@ -398,12 +399,18 @@ class DeeprouteDataset(Custom3DDataset):
 
             # TODO write file depend on config   
             #create the detection result directory for current experiment.
-            if not os.path.exists('./work_dirs/'+save_folder+'/evaluation/detections/'+sample_idx[0]):
-                os.makedirs('./work_dirs/'+save_folder+'/evaluation/detections/'+sample_idx[0])     
-            with open('./work_dirs/'+save_folder+'/evaluation/detections/'+sample_idx[0]+'/'+sample_idx[1]+'.txt', 'w') as f :
-                    json.dump(annos, f ,ensure_ascii=False)
-
-            print('Result is saved to prediction folder')
+            if self.valid_mode:
+                if not os.path.exists('./work_dirs/'+save_folder+'/evaluation/detections/valid/'+sample_idx[0]):
+                    os.makedirs('./work_dirs/'+save_folder+'/evaluation/detections/valid/'+sample_idx[0])
+                with open('./work_dirs/'+save_folder+'/evaluation/detections/valid/'+sample_idx[0]+'/'+sample_idx[1]+'.txt', 'w') as f :
+                        js:on.dump(annos, f ,ensure_ascii=False)
+                print('valid result is saved to prediction folder')
+            elif self.test_mode:
+                if not os.path.exists('./work_dirs/'+save_folder+'/evaluation/detections/test/'+sample_idx[0]):
+                    os.makedirs('./work_dirs/'+save_folder+'/evaluation/detections/test/'+sample_idx[0])     
+                with open('./work_dirs/'+save_folder+'/evaluation/detections/test/'+sample_idx[0]+'/'+sample_idx[1]+'.txt', 'w') as f :
+                        json.dump(annos, f ,ensure_ascii=False)
+                print('test result is saved to prediction folder')
 
         
 
