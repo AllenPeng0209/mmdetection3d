@@ -116,7 +116,7 @@ class DeeprouteDataset(Custom3DDataset):
         # TODO : Modify the code to trainging and test split mode here
         
         if self.test_mode:
-            self.valid_mode=True
+            self.valid_mode=False
             if self.valid_mode:
                 pts_filename = osp.join('./data/deeproute/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
             else:

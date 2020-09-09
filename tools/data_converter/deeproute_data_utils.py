@@ -121,7 +121,7 @@ def get_deeproute_image_info(path,
                          num_worker=8,
                          relative_path=True,
                          with_imageshape=False, 
-                         valid = True):
+                         valid = False):
     # image_infos = []
     """
     KITTI annotation format version 2:

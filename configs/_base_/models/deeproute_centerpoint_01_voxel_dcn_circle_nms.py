@@ -60,7 +60,7 @@ model = dict(
             pc_range=point_cloud_range[:2],
             out_size_factor=8,
             voxel_size=voxel_size[:2],
-            code_size=9),
+            code_size=7),
         dcn_head=True,
         loss_cls=dict(type='GaussianFocalLoss', reduction='sum'),
         loss_reg=dict(type='L1Loss', reduction='none', loss_weight=0.25)))

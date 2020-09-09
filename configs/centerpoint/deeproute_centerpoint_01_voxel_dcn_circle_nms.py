@@ -101,8 +101,8 @@ train_pipeline = [
 test_pipeline = [
     dict(
         type='LoadPointsFromFile',
-        load_dim=5,
-        use_dim=5,
+        load_dim=3,
+        use_dim=3,
         file_client_args=file_client_args),
     dict(
         type='MultiScaleFlipAug3D',
@@ -128,7 +128,7 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=2,
-    workers_per_gpu=4,
+    workers_per_gpu=0,
     train=dict(
         type='CBGSDataset',
         dataset=dict(
@@ -155,7 +155,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_val.pkl',
+        ann_file=data_root + 'deeproute_infos_test.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,

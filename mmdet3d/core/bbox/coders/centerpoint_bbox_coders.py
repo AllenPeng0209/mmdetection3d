@@ -27,7 +27,7 @@ class CenterPointBBoxCoder(BaseBBoxCoder):
                  post_center_range=None,
                  max_num=100,
                  score_threshold=None,
-                 code_size=9):
+                 code_size=7):
 
         self.pc_range = pc_range
         self.out_size_factor = out_size_factor
