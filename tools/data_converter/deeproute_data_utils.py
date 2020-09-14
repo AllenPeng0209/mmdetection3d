@@ -20,9 +20,9 @@ def get_deeproute_info_path(idx,
     img_idx_str += file_tail
     prefix = Path(prefix)
     if training:
-        file_path ='/home/data/deeproute'/ Path('training') / info_type / folder/ img_idx_str
+        file_path ='/home/yanlun/mmdetection3d/data/deeproute_mini'/ Path('training') / info_type / folder/ img_idx_str
     else:
-        file_path ='/home/data/deeproute'/ Path('testing') / info_type / folder / img_idx_str
+        file_path ='/home/yanlun/mmdetection3d/data/deeproute_mini'/ Path('testing') / info_type / folder / img_idx_str
     if exist_check and not (prefix / file_path).exists():
         raise ValueError('file not exist: {}'.format(file_path))
     if relative_path:

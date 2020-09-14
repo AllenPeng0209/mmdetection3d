@@ -6,6 +6,7 @@ from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import to_tensor
 
 PIPELINES._module_dict.pop('DefaultFormatBundle')
+from IPython import embed
 
 
 @PIPELINES.register_module()
@@ -50,7 +51,7 @@ class DefaultFormatBundle(object):
                 results['img'] = DC(to_tensor(img), stack=True)
         for key in [
                 'proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels',
-                'gt_labels_3d', 'pts_instance_mask', 'pts_semantic_mask'
+                'gt_labels_3d','gt_points_3d', 'pts_instance_mask', 'pts_semantic_mask'
         ]:
             if key not in results:
                 continue
@@ -246,6 +247,9 @@ class DefaultFormatBundle3D(DefaultFormatBundle):
                         for n in results['gt_names_3d']
                     ],
                                                        dtype=np.int64)
+                #if 'gt_points_3d' in results:
+                #    results['gt_points_3d'] = np.array(results['gt_points_3d'],  dtype=np.int64) 
+
         results = super(DefaultFormatBundle3D, self).__call__(results)
         return results
 

@@ -412,7 +412,7 @@ class CenterHead(nn.Module):
             feat = feat.view(-1, dim)
         return feat
 
-    def get_targets(self, gt_bboxes_3d, gt_labels_3d):
+    def get_targets(self, gt_bboxes_3d, gt_labels_3d, gt_points_3d):
         """Generate targets.
 
         Args:
@@ -427,6 +427,7 @@ class CenterHead(nn.Module):
                 position of the valid boxes.
             list[torch.Tensor]: Masks indicating which boxes are valid.
         """
+        #TODO assign point_3d as target
         heatmaps, anno_boxes, inds, masks = multi_apply(
             self.get_targets_single, gt_bboxes_3d, gt_labels_3d)
         heatmaps = np.array(heatmaps).transpose(1, 0).tolist()
@@ -588,7 +589,7 @@ class CenterHead(nn.Module):
             inds.append(ind)
         return hms, anno_boxes, inds, masks
 
-    def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs):
+    def loss(self, gt_bboxes_3d, gt_labels_3d, gt_points_3d , preds_dicts, **kwargs):
         """Loss function for CenterHead.
 
         Args:
@@ -614,7 +615,7 @@ class CenterHead(nn.Module):
                 - loc_loss_task5 (torch.Tensor): Loss of location for task5.
         """
         hms, anno_boxes, inds, masks = self.get_targets(
-            gt_bboxes_3d, gt_labels_3d)
+            gt_bboxes_3d, gt_labels_3d, gt_points_3d)
         loss_dict = dict()
         for task_id, preds_dict in enumerate(preds_dicts):
             # heatmap focal loss

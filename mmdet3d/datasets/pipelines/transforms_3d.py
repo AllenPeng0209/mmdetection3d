@@ -1,7 +1,7 @@
 import numpy as np
 from mmcv import is_tuple_of
 from mmcv.utils import build_from_cfg
-
+import mmcv
 from mmdet3d.core.bbox import box_np_ops
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import RandomFlip
@@ -128,6 +128,8 @@ class ObjectSample(object):
             db_sampler['type'] = 'DataBaseSampler'
         self.db_sampler = build_from_cfg(db_sampler, OBJECTSAMPLERS)
 
+        self.points_loader = mmcv.build_from_cfg(self.sampler_cfg['points_loader'], PIPELINES) 
+        self.add_gt_points_3d = True
     @staticmethod
     def remove_points_in_boxes(points, boxes):
         """Remove the points in the sampled bounding boxes.
@@ -156,9 +158,42 @@ class ObjectSample(object):
         """
         gt_bboxes_3d = input_dict['gt_bboxes_3d']
         gt_labels_3d = input_dict['gt_labels_3d']
-
+        gt_points_3d = input_dict['gt_points_3d']
         # change to float for blending operation
         points = input_dict['points']
+
+        '''
+        if self.add_gt_points_3d:
+            gt_bbox_file_path= []
+            gt_box_points_center_position = []
+            gt_box_points_center_angle = []
+            #find all the db in this idx
+            #loop all the db and count the point mean and angle
+            #store in the gt_points_3d and waited to concate 
+            import glob
+            import math
+            root_path = self.sampler_cfg['data_root']
+            dataset_name = 'deeproute_gt_database/'
+            idx_path = str(input_dict['sample_idx'])
+
+            for gt_file in glob.glob(root_path+dataset_name+idx_path[:-3]+'*'): 
+                gt_bbox_file_path.append(gt_file)
+            
+            for i, info_path in enumerate(sorted(gt_bbox_file_path,key= lambda x: int(x.split('_')[-1][:-4]))):
+                results = dict(pts_filename=info_path)
+                s_points = self.points_loader(results)['points'] 
+                s_points[:, :3] += gt_bboxes_3d.tensor.numpy()[i, :3]
+                gt_box_point_center_position = s_points[:, :3].mean(axis=0)
+                gt_box_point_center_x = gt_box_point_center_position[0]
+                gt_box_point_center_y = gt_box_point_center_position[1] 
+                gt_box_point_center_angle = math.atan2(gt_box_point_center_y, gt_box_point_center_x)
+                gt_box_points_center_position.append(gt_box_point_center_position)
+                gt_box_points_center_angle.append(gt_box_point_center_angle)
+
+            gt_points_3d = np.concatenate([np.array(gt_box_points_center_position)
+                                          , np.array(gt_box_points_center_angle).reshape(-1,1)]
+                                          , axis=1) 
+        '''
         if self.sample_2d:
             img = input_dict['img']
             gt_bboxes_2d = input_dict['gt_bboxes']
@@ -176,13 +211,14 @@ class ObjectSample(object):
             sampled_gt_bboxes_3d = sampled_dict['gt_bboxes_3d']
             sampled_points = sampled_dict['points']
             sampled_gt_labels = sampled_dict['gt_labels_3d']
-
+            sampled_gt_points_3d = sampled_dict['gt_points_3d']  
             gt_labels_3d = np.concatenate([gt_labels_3d, sampled_gt_labels],
                                           axis=0)
             gt_bboxes_3d = gt_bboxes_3d.new_box(
                 np.concatenate(
                     [gt_bboxes_3d.tensor.numpy(), sampled_gt_bboxes_3d]))
-
+            if self.add_gt_points_3d:
+                gt_points_3d = np.concatenate([gt_points_3d, sampled_gt_points_3d],axis=0)
             points = self.remove_points_in_boxes(points, sampled_gt_bboxes_3d)
             # check the points dimension
             dim_inds = points.shape[-1]
@@ -196,11 +232,15 @@ class ObjectSample(object):
 
                 input_dict['gt_bboxes'] = gt_bboxes_2d
                 input_dict['img'] = sampled_dict['img']
-
+        #TODO here we can find all the gt_bbox from db and caculate the mean and angle
         input_dict['gt_bboxes_3d'] = gt_bboxes_3d
         input_dict['gt_labels_3d'] = gt_labels_3d
         input_dict['points'] = points
-
+        #TODO add addtiional gt point feature
+        if self.add_gt_points_3d:
+            input_dict['gt_points_3d'] = gt_points_3d
+        #TODO add visualiza to make sure everything is right 
+        
         return input_dict
 
     def __repr__(self):
@@ -399,7 +439,6 @@ class GlobalRotScaleTrans(object):
                 'pcd_scale_factor', 'pcd_trans' and keys in \
                 input_dict['bbox3d_fields'] are updated in the result dict.
         """
-        #embed()
         self._rot_bbox_points(input_dict)
 
         if 'pcd_scale_factor' not in input_dict:

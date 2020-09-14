@@ -11,7 +11,7 @@ class_names = [
 'CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN',
 'PEDESTRIAN_HARD', 'CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD','CONE']
 dataset_type = 'DeeprouteDataset'
-data_root = 'data/deeproute/'
+data_root = 'data/deeproute_mini/'
 # Input modality for nuScenes dataset, this is consistent with the submission
 # format which requires the information in input_modality.
 input_modality = dict(
@@ -24,7 +24,7 @@ file_client_args = dict(backend='disk')
 
 db_sampler = dict(
     data_root=data_root,
-    info_path=data_root + 'deeproute_dbinfos_train.pkl',
+    info_path=data_root + 'deeproute_mini_dbinfos_train.pkl',
     rate=1.0,
     prepare=dict(
         filter_by_difficulty=[-1],
@@ -80,7 +80,7 @@ train_pipeline = [
         load_dim=3,
         use_dim=3,
         file_client_args=file_client_args),
-    dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
+    dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_points_3d= True),
     dict(type='ObjectSample', db_sampler=db_sampler),
     dict(
         type='GlobalRotScaleTrans',
@@ -97,7 +97,7 @@ train_pipeline = [
     dict(type='ObjectNameFilter', classes=class_names),
     dict(type='PointShuffle'),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
-    dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d'])
+    dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_points_3d'])
 ]
 test_pipeline = [
     dict(
@@ -135,7 +135,7 @@ data = dict(
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
-            ann_file=data_root + 'deeproute_infos_train.pkl',
+            ann_file=data_root + 'deeproute_mini_infos_train.pkl',
             pipeline=train_pipeline,
             classes=class_names,
             modality=input_modality,
@@ -147,7 +147,7 @@ data = dict(
     val=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_val.pkl',
+        ann_file=data_root + 'deeproute_mini_infos_val.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -156,7 +156,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_val.pkl',
+        ann_file=data_root + 'deeproute_mini_infos_val.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,

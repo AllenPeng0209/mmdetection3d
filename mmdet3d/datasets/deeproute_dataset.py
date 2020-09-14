@@ -1,4 +1,3 @@
-""
 import copy
 import mmcv
 import numpy as np
@@ -120,11 +119,11 @@ class DeeprouteDataset(Custom3DDataset):
         
         if self.test_mode:
             if self.valid_mode:
-                pts_filename = osp.join('./data/deeproute/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
+                pts_filename = osp.join('./data/deeproute_mini/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
             else:
-                pts_filename = osp.join('./data/deeproute/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
+                pts_filename = osp.join('./data/deeproute_mini/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
         else:
-            pts_filename = osp.join('./data/deeproute/training', self.pts_prefix,idx[0],idx[1]+'.bin')
+            pts_filename = osp.join('./data/deeproute_mini/training', self.pts_prefix,idx[0],idx[1]+'.bin')
         return pts_filename
 
     def get_data_info(self, index):
@@ -223,10 +222,11 @@ class DeeprouteDataset(Custom3DDataset):
                 gt_labels.append(-1)
         gt_labels = np.array(gt_labels)
         gt_labels_3d = copy.deepcopy(gt_labels)
-
+        gt_points_3d = annos['gt_points_3d']
         anns_results = dict(
             gt_bboxes_3d=gt_bboxes_3d,
             gt_labels_3d=gt_labels_3d,
+            gt_points_3d = gt_points_3d,
             bboxes=gt_bboxes,
             labels=gt_labels,
             gt_names=gt_names)
@@ -276,7 +276,7 @@ class DeeprouteDataset(Custom3DDataset):
         ]
         for key in ann_info.keys():
             img_filtered_annotations[key] = (
-                ann_info[key][relevant_annotation_indices])
+                   ann_info[key][relevant_annotation_indices])
         return img_filtered_annotations
 
     def format_results(self,

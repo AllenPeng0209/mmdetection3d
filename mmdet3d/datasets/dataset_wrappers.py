@@ -60,63 +60,6 @@ class CBGSDataset(object):
                                                    min(ratio,3))).tolist()
         return sample_indices
         
-        '''
-        if dataset == 'nuscenes':
-            data = mmcv.load(ann_file)
-            _cls_inds = {name: [] for name in self.CLASSES}
-            for idx, info in enumerate(data['infos']):
-                if self.dataset.use_valid_flag:
-                    mask = info['valid_flag']
-                    gt_names = set(info['gt_names'][mask])
-                else:
-                    gt_names = set(info['gt_names'])
-                for name in gt_names:
-                    if name in self.CLASSES:
-                        _cls_inds[name].append(idx)
-            duplicated_samples = sum([len(v) for _, v in _cls_inds.items()])
-            _cls_dist = {
-                k: len(v) / duplicated_samples
-                for k, v in _cls_inds.items()
-            }
-
-            repeat_indices = []
-
-            frac = 1.0 / len(self.CLASSES)
-            ratios = [frac / v for v in _cls_dist.values()]
-            for cls_infos, ratio in zip(list(_cls_inds.values()), ratios):
-                repeat_indices += np.random.choice(cls_infos,
-                                                   int(len(cls_infos) *
-                                                       ratio)).tolist()
-
-            self.metadata = data['metadata']
-            self.version = self.metadata['version']
-        #naive version : just balance all types, including Car and Car_Hard
-        #try : balance different things , not include hard
-        #try : balance group type , like smallmot, 
-        
-        elif dataset == 'deeproute':
-            data = mmcv.load(ann_file)
-            _cls_inds = {name:[] for name in self.dataset.class_map}
-            
-            for idx , info in enumerate(data):
-                 gt_names = set(info['annos']['type'])
-                 for name in gt_names:
-                     if name in self.dataset.class_map: 
-                         _cls_inds[name].append(idx) 
-            duplicated_samples = sum([len(v) for _, v in _cls_inds.items()])
-            _cls_dist = { 
-               k: len(v) / duplicated_samples
-               for k, v in _cls_inds.items()
-            }
-            repeat_indices = []
-            frac = 1.0 / len(self.dataset.class_map)
-            ratios = [frac / v for v in _cls_dist.values() if v!=0]
-            #ratios = [x/sum(ratios) for x in ratios]
-            for cls_infos, ratio in zip(list(_cls_inds.values()), ratios):
-               repeat_indices += np.random.choice(cls_infos, int(len(cls_infos) *
-                                                               ratio)).tolist()              
-        return repeat_indices
-        '''
     def __getitem__(self, idx):
         """Get item from infos according to the given index.
 

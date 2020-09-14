@@ -4,7 +4,7 @@ from mmcv.parallel import DataContainer as DC
 from os import path as osp
 from torch import nn as nn
 from torch.nn import functional as F
-
+from IPython import embed
 from mmdet3d.core import (Box3DMode, bbox3d2result, merge_aug_bboxes_3d,
                           show_result)
 from mmdet3d.ops import Voxelization
@@ -232,11 +232,13 @@ class CenterPoint(Base3DDetector):
                       img_metas=None,
                       gt_bboxes_3d=None,
                       gt_labels_3d=None,
+                      gt_points_3d = None, 
                       gt_labels=None,
                       gt_bboxes=None,
                       img=None,
                       proposals=None,
-                      gt_bboxes_ignore=None):
+                      gt_bboxes_ignore=None
+                      ):
         """Forward training function.
 
         Args:
@@ -265,9 +267,10 @@ class CenterPoint(Base3DDetector):
         img_feats, pts_feats = self.extract_feat(
             points, img=img, img_metas=img_metas)
         losses = dict()
+        
         if pts_feats:
             losses_pts = self.forward_pts_train(pts_feats, gt_bboxes_3d,
-                                                gt_labels_3d, img_metas,
+                                                gt_labels_3d, gt_points_3d, img_metas,
                                                 gt_bboxes_ignore)
             losses.update(losses_pts)
         if img_feats:
@@ -285,6 +288,7 @@ class CenterPoint(Base3DDetector):
                           pts_feats,
                           gt_bboxes_3d,
                           gt_labels_3d,
+                          gt_points_3d,
                           img_metas,
                           gt_bboxes_ignore=None):
         """Forward function for point cloud branch.
@@ -301,9 +305,10 @@ class CenterPoint(Base3DDetector):
 
         Returns:
             dict: Losses of each branch.
-        """
+        """  
+        
         outs = self.pts_bbox_head(pts_feats)
-        loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs]
+        loss_inputs = [gt_bboxes_3d, gt_labels_3d,gt_points_3d, outs]
         losses = self.pts_bbox_head.loss(*loss_inputs)
         return losses
 

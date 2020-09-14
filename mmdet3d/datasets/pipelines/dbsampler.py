@@ -7,7 +7,7 @@ from mmdet3d.core.bbox import box_np_ops
 from mmdet3d.datasets.pipelines import data_augment_utils
 from mmdet.datasets import PIPELINES
 from ..registry import OBJECTSAMPLERS
-
+import math
 
 class BatchSampler:
     """Class for sampling specific category of ground truths.
@@ -101,7 +101,8 @@ class DataBaseSampler(object):
                  points_loader=dict(
                      type='LoadPointsFromFile',
                      load_dim=4,
-                     use_dim=[0, 1, 2, 3])):
+        
+             use_dim=[0, 1, 2, 3])):
         super().__init__()
         self.data_root = data_root
         self.info_path = info_path
@@ -243,40 +244,56 @@ class DataBaseSampler(object):
                         [avoid_coll_boxes, sampled_gt_box], axis=0)
 
         ret = None
+        gt_points_3d = []
         if len(sampled) > 0:
             sampled_gt_bboxes = np.concatenate(sampled_gt_bboxes, axis=0)
             # center = sampled_gt_bboxes[:, 0:3]
 
             # num_sampled = len(sampled)
             s_points_list = []
+            gt_points_3d = []
             count = 0
             for info in sampled:
                 file_path = os.path.join(
                     self.data_root,
                     info['path']) if self.data_root else info['path']
-
                 results = dict(pts_filename=file_path)
                 s_points = self.points_loader(results)['points']
                 s_points[:, :3] += info['box3d_lidar'][:3]
-
-                count += 1
-
                 s_points_list.append(s_points)
+                count += 1
+                # TODO add points_center and angle(better not to do here)
+                gt_points_3d_mean = s_points[:, :3].mean(axis=0)
+                gt_points_3d_median = np.median(s_points[:, :3],axis=0)
+                gt_points_3d_length = np.array(max(s_points[:, 0]) - min(s_points[:, 0])).reshape(1)
+                gt_points_3d_width =  np.array(max(s_points[:, 1]) - min(s_points[:, 1])).reshape(1)
+                gt_points_3d_height = np.array(max(s_points[:, 2]) - min(s_points[:, 2])).reshape(1)
+                gt_points_3d_obj = np.concatenate((gt_points_3d_mean,gt_points_3d_median,
+                                                  gt_points_3d_length,gt_points_3d_width,
+                                                  gt_points_3d_height))
+                gt_points_3d.append(gt_points_3d_obj)
+            
+            gt_points_3d = np.stack(gt_points_3d)
             # gt_names = np.array([s['name'] for s in sampled]),
             # gt_labels = np.array([self.cat2label(s) for s in gt_names])
+             
             gt_labels = np.array([self.cat2label[s['name']] for s in sampled])
+            bbox_add_points_info=True
+            
             ret = {
                 'gt_labels_3d':
                 gt_labels,
                 'gt_bboxes_3d':
                 sampled_gt_bboxes,
+                'gt_points_3d':
+                 gt_points_3d,
                 'points':
                 np.concatenate(s_points_list, axis=0),
                 'group_ids':
                 np.arange(gt_bboxes.shape[0],
                           gt_bboxes.shape[0] + len(sampled))
             }
-
+        
         return ret
 
     def sample_class_v2(self, name, num, gt_bboxes):
