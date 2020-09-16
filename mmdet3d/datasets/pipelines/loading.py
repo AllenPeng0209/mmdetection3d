@@ -448,9 +448,6 @@ class LoadAnnotations3D(LoadAnnotations):
         """
         results['gt_labels_3d'] = results['ann_info']['gt_labels_3d']
         return results
-    def _load_points_3d(self, results):
-        results['gt_points_3d'] = results['ann_info']['gt_points_3d'] 
-        return results
     def _load_masks_3d(self, results):
         """Private function to load 3D mask annotations.
 
@@ -519,8 +516,6 @@ class LoadAnnotations3D(LoadAnnotations):
                 return None
         if self.with_label_3d:
             results = self._load_labels_3d(results)
-        if self.with_points_3d:
-            results = self._load_points_3d(results) 
         if self.with_mask_3d:
             results = self._load_masks_3d(results)
         if self.with_seg_3d:

@@ -96,6 +96,7 @@ train_pipeline = [
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
     dict(type='PointShuffle'),
+    dict(type='GT_Points_3D'),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
     dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_points_3d'])
 ]
@@ -156,7 +157,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_mini_infos_val.pkl',
+        ann_file=data_root + 'deeproute_mini_infos_test.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,

@@ -429,7 +429,7 @@ class CenterHead(nn.Module):
         """
         #TODO assign point_3d as target
         heatmaps, anno_boxes, inds, masks = multi_apply(
-            self.get_targets_single, gt_bboxes_3d, gt_labels_3d)
+            self.get_targets_single, gt_bboxes_3d, gt_labels_3d, gt_points_3d)
         heatmaps = np.array(heatmaps).transpose(1, 0).tolist()
         heatmaps = [torch.stack(hms_) for hms_ in heatmaps]
         anno_boxes = np.array(anno_boxes).transpose(1, 0).tolist()
@@ -440,7 +440,7 @@ class CenterHead(nn.Module):
         masks = [torch.stack(masks_) for masks_ in masks]
         return heatmaps, anno_boxes, inds, masks
 
-    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d, with_velocity=False):
+    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d, gt_points_3d,with_velocity=False):
         """Generate training targets for a single sample.
 
         Args:
@@ -455,6 +455,7 @@ class CenterHead(nn.Module):
             list[torch.Tensor]: Masks indicating which boxes
                 are valid.
         """
+        assert gt_labels_3d.shape[0]==gt_points_3d.shape[0]==gt_bboxes_3d.tensor.shape[0]
         device = gt_labels_3d.device
         if with_velocity: 
             gt_bboxes_3d = torch.cat((gt_bboxes_3d.gravity_center,
@@ -661,6 +662,7 @@ class CenterHead(nn.Module):
         Returns:
             list[dict]: Decoded bbox, scores and labels after nms.
         """
+    
         rets = []
         for task_id, preds_dict in enumerate(preds_dicts):
             num_class_with_bg = self.num_classes[task_id]

@@ -82,7 +82,7 @@ class DeeprouteDataset(Custom3DDataset):
                  box_type_3d='LiDAR',
                  filter_empty_gt=True,
                  test_mode=False,
-                 valid_mode=True):
+                 valid_mode=False):
         super().__init__(
             data_root=data_root,
             ann_file=ann_file,
@@ -222,14 +222,14 @@ class DeeprouteDataset(Custom3DDataset):
                 gt_labels.append(-1)
         gt_labels = np.array(gt_labels)
         gt_labels_3d = copy.deepcopy(gt_labels)
-        gt_points_3d = annos['gt_points_3d']
-        anns_results = dict(
-            gt_bboxes_3d=gt_bboxes_3d,
-            gt_labels_3d=gt_labels_3d,
-            gt_points_3d = gt_points_3d,
-            bboxes=gt_bboxes,
-            labels=gt_labels,
-            gt_names=gt_names)
+
+        
+       
+        anns_results = dict( 
+                gt_bboxes_3d=gt_bboxes_3d, 
+                gt_labels_3d=gt_labels_3d, 
+                bboxes=gt_bboxes,labels=gt_labels,
+                gt_names=gt_names)
         return anns_results
 
     def drop_arrays_by_name(self, gt_names, used_classes):
@@ -275,8 +275,13 @@ class DeeprouteDataset(Custom3DDataset):
             i for i, x in enumerate(ann_info['type']) if x != 'DONT_CARE' and x != 'BACKGROUND'
         ]
         for key in ann_info.keys():
-            img_filtered_annotations[key] = (
+            if key != 'gt_points_3d':
+                img_filtered_annotations[key] = (
                    ann_info[key][relevant_annotation_indices])
+            else:
+                img_filtered_annotations[key] = ann_info[key]
+        #if img_filtered_annotations['gt_points_3d'].shape[0]!=img_filtered_annotations['dimensions'].shape[0]:
+        #    embed()
         return img_filtered_annotations
 
     def format_results(self,
@@ -293,7 +298,6 @@ class DeeprouteDataset(Custom3DDataset):
                 the json filepaths, tmp_dir is the temporal directory created \
                 for saving json files when jsonfile_prefix is not specified.
         """
-
         result_files = self.bbox2result_deeproute(outputs, self.CLASSES_EVAL,
                                                  save_folder)
         return result_files

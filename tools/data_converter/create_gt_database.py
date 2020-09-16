@@ -119,7 +119,7 @@ def create_groundtruth_database(dataset_class_name,
                                 bev_only=False,
                                 coors_range=None,
                                 with_mask=False,
-                                add_gt_points_3d=True):
+                                add_gt_points_3d=False):
     """Given the raw data, generate the ground truth database.
 
     Args:
@@ -228,8 +228,14 @@ def create_groundtruth_database(dataset_class_name,
     group_counter = 0
     for j in track_iter_progress(list(range(len(dataset)))):
         input_dict = dataset.get_data_info(j)
+        #print("before_pre")
+        #embed()
         dataset.pre_pipeline(input_dict)
+        #print("after pre")
+        #embed()
         example = dataset.pipeline(input_dict)
+        #print("after pipeline")
+        #embed()
         annos = example['ann_info']
         image_idx = example['sample_idx']
         points = example['points']
@@ -246,7 +252,6 @@ def create_groundtruth_database(dataset_class_name,
             difficulty = annos['difficulty']
 
         num_obj = gt_boxes_3d.shape[0]
-        
         point_indices = box_np_ops.points_in_rbbox(points, gt_boxes_3d)
 
         if with_mask:
@@ -305,7 +310,7 @@ def create_groundtruth_database(dataset_class_name,
                 #open the pickle file 
                 #update those result to the pickle
                 
-                if len(gt_points)>5:
+                if len(gt_points)>=5:
                     gt_points_3d_mean = np.mean(gt_points,axis=0)
                     gt_points_3d_median = np.median(gt_points, axis=0)
                     gt_points_3d_length = np.array(max(gt_points[:,0])-min(gt_points[:,0])).reshape(1)
@@ -329,10 +334,6 @@ def create_groundtruth_database(dataset_class_name,
                                                       ,gt_points_3d_height), axis=0)
                     gt_points_3d.append(gt_points_3d_obj)
                 
-                   
-
-
-               
 
             if (used_classes is None) or names[i] in used_classes:
                 db_info = {
@@ -359,14 +360,16 @@ def create_groundtruth_database(dataset_class_name,
                 else:
                     all_db_infos[names[i]] = [db_info]
         if add_gt_points_3d:
+            
             gt_points_3d = np.stack( gt_points_3d )
             train_annos[j]['annos']['gt_points_3d']= gt_points_3d
+            #check gt_points_3d shape is the same as labels.
+            #if gt_points_3d.shape[0] != gt_boxes_3d.shape[0]:
     if add_gt_points_3d:
         with open(train_pkl_path, 'wb') as f:
             pickle.dump(train_annos, f)     
- 
     for k, v in all_db_infos.items():
         print(f'load {len(v)} {k} database infos')
-        
+         
     with open(db_info_save_path, 'wb') as f:
         pickle.dump(all_db_infos, f)
