@@ -185,10 +185,6 @@ class ObjectSample(object):
             gt_bboxes_3d = gt_bboxes_3d.new_box(
                 np.concatenate(
                     [gt_bboxes_3d.tensor.numpy(), sampled_gt_bboxes_3d]))
-            '''
-            if self.add_gt_points_3d:
-                gt_points_3d = np.concatenate([gt_points_3d, sampled_gt_points_3d],axis=0)
-            '''
             points = self.remove_points_in_boxes(points, sampled_gt_bboxes_3d)
             # check the points dimension
             dim_inds = points.shape[-1]
@@ -206,15 +202,6 @@ class ObjectSample(object):
         input_dict['gt_bboxes_3d'] = gt_bboxes_3d
         input_dict['gt_labels_3d'] = gt_labels_3d
         input_dict['points'] = points
-        '''
-        Do it after other operation
-        #TODO add addtiional gt point feature
-        if self.add_gt_points_3d:
-            input_dict['gt_points_3d'] = gt_points_3d
-            if gt_labels_3d.shape[0] != gt_points_3d.shape[0]:
-                embed()
-        '''
-        #TODO add visualiza to make sure everything is right 
         
         return input_dict
 

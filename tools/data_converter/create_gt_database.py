@@ -191,7 +191,7 @@ def create_groundtruth_database(dataset_class_name,
     elif dataset_class_name =='DeeprouteDataset':
         file_client_args = dict(backend='disk')
         dataset_cfg.update(
-            test_mode=False,
+            test_mode=True,
             modality=dict( 
                 use_lidar=True,
                 use_depth=False,
@@ -220,26 +220,15 @@ def create_groundtruth_database(dataset_class_name,
         for i in imgIds:
             info = coco.loadImgs([i])[0]
             file2id.update({info['file_name']: i})
-    if add_gt_points_3d:
-        train_pkl_path = './data/deeproute_mini/deeproute_mini_infos_train.pkl'
-        with open(train_pkl_path , 'rb') as train_pkl:
-            train_annos = pickle.load(train_pkl) 
 
     group_counter = 0
     for j in track_iter_progress(list(range(len(dataset)))):
         input_dict = dataset.get_data_info(j)
-        #print("before_pre")
-        #embed()
         dataset.pre_pipeline(input_dict)
-        #print("after pre")
-        #embed()
         example = dataset.pipeline(input_dict)
-        #print("after pipeline")
-        #embed()
         annos = example['ann_info']
         image_idx = example['sample_idx']
         points = example['points']
-        #original
         gt_boxes_3d = annos['gt_bboxes_3d'].tensor.numpy()
         names = annos['gt_names']
         group_dict = dict()

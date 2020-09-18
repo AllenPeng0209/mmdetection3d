@@ -12,6 +12,7 @@ from ..core import show_result
 from ..core.bbox import Box3DMode, LiDARInstance3DBoxes, points_cam2img
 from .custom_3d import Custom3DDataset
 import json
+from mmdet3d.core.bbox import box_np_ops as box_np_ops 
 @DATASETS.register_module()
 class DeeprouteDataset(Custom3DDataset):
     r"""KITTI Dataset.
@@ -280,8 +281,6 @@ class DeeprouteDataset(Custom3DDataset):
                    ann_info[key][relevant_annotation_indices])
             else:
                 img_filtered_annotations[key] = ann_info[key]
-        #if img_filtered_annotations['gt_points_3d'].shape[0]!=img_filtered_annotations['dimensions'].shape[0]:
-        #    embed()
         return img_filtered_annotations
 
     def format_results(self,
@@ -301,6 +300,25 @@ class DeeprouteDataset(Custom3DDataset):
         result_files = self.bbox2result_deeproute(outputs, self.CLASSES_EVAL,
                                                  save_folder)
         return result_files
+    def deeproute2kitti_format(self, gt_annos, dt_annos):
+
+        
+        #convert dt_anno to kitti format
+        dt_annos =  self.bbox2result_kitti(dt_annos, self.CLASSES_EVAL)
+        #convert gt_anno to kitti format
+        deeproute_gt_anno=[]
+        for i in range(len(gt_annos)):
+            info = {}
+            info['pts_bbox'] = self.get_ann_info(i)
+            info['pts_bbox']['boxes_3d'] = info['pts_bbox'].pop('gt_bboxes_3d')
+            info['pts_bbox']['labels_3d'] = torch.tensor(info['pts_bbox'].pop('gt_labels_3d'))
+            info['pts_bbox']['scores_3d'] = torch.tensor(np.ones(len(info['pts_bbox']['labels_3d'])))
+            deeproute_gt_anno.append(info)
+        gt_annos = self.gt_anno2kitti(deeproute_gt_anno, self.CLASSES_EVAL)
+        return gt_annos, dt_annos
+
+        
+
 
     def evaluate(self,
                  results,
@@ -308,7 +326,8 @@ class DeeprouteDataset(Custom3DDataset):
                  logger=None,
                  pklfile_prefix=None,
                  show=False,
-                 out_dir=None):
+                 out_dir=None,
+                 use_kitti_eval=True):
         """Evaluation in deeproute protocol.
 
         Args:
@@ -327,6 +346,19 @@ class DeeprouteDataset(Custom3DDataset):
         Returns:
             dict[str, float]: Results of each evaluation metric.
         """
+        if use_kitti_eval:
+            from mmdet3d.core.evaluation import deeproute2kitti_eval
+            #result_files, tmp_dir = self.format_results(results, pklfile_prefix)
+            # load gt_data and tranform deeproute data to kitti format
+            gt_annos = [info['annos'] for info in self.data_infos]
+            dt_annos = results
+            gt_annos ,dt_annos= self.deeproute2kitti_format(gt_annos,dt_annos)
+            ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos,tuple(set(self.CLASSES_EVAL)))    
+            print_log('\n' + ap_result_str, logger=logger)
+            return ap_dict
+
+        '''
+        #TODO write evaluation process during training by deeproute evaluation 
         result_files, tmp_dir = self.format_results(results, pklfile_prefix)
         from mmdet3d.core.evaluation import deeproute_eval
         #gt_annos = [info['annos'] for info in self.data_infos]
@@ -336,8 +368,129 @@ class DeeprouteDataset(Custom3DDataset):
             tmp_dir.cleanup()
         if show:
             self.show(results, out_dir)
-        return result_dict
+        '''
 
+
+        return ap_result
+    def gt_anno2kitti(self, deeproute_gt_annos, class_names):
+        gt_annos = []
+        print('\nConverting gt_annos to KITTI format')
+        for idx, pred_dicts in enumerate(mmcv.track_iter_progress(deeproute_gt_annos)):
+            annos = []
+            info = self.data_infos[idx]
+            sample_idx = info['image']['image_idx']
+            box_dict = self.convert_valid_bboxes(pred_dicts['pts_bbox'], info)
+            
+            # add pts_in_the box
+            points_path = self._get_pts_filename(self.get_data_info(idx)['sample_idx'])
+            points = np.fromfile(points_path, dtype=np.float32).reshape((-1,3))
+            gt_bboxes_3d = box_dict['box3d_lidar']
+            points_indices = box_np_ops.points_in_rbbox(points, gt_bboxes_3d)
+            points_num_in_box= points_indices.sum(axis=0)
+            
+            if len(box_dict['box3d_lidar'])>0:
+                if 'scores' in box_dict:
+                    scores = box_dict['scores']
+                else:
+                    scores = np.ones(len(box_dict['label_preds']))
+                box_preds_lidar = box_dict['box3d_lidar']
+                label_preds = box_dict['label_preds']
+                anno = {
+                   'name': [],
+                   'truncated': [],
+                   'occluded': [],
+                   'alpha': [],
+                   'bbox': [],
+                   'dimensions': [],
+                   'location': [],
+                   'rotation_y': [],
+                   'score': [],
+                   'pts_in_box':[]
+
+                }
+                for box_lidar, score, label ,pts_in_box in zip(box_preds_lidar, scores,label_preds, points_num_in_box):
+                    #bbox[2:] = np.minimum(bbox[2:], image_shape[::-1])
+                    #bbox[:2] = np.maximum(bbox[:2], [0, 0])
+                    anno['name'].append(class_names[int(label)])
+                    anno['truncated'].append(0.0)
+                    anno['occluded'].append(0)
+                    anno['alpha'].append(-np.arctan2(-box_lidar[1], box_lidar[0]))
+                    anno['bbox'].append(np.zeros(4))
+                    anno['dimensions'].append(box_lidar[3:6])
+                    anno['location'].append(box_lidar[:3])
+                    anno['rotation_y'].append(box_lidar[6])
+                    anno['score'].append(score)
+                    anno['pts_in_box'].append(pts_in_box)
+                anno = {k: np.stack(v) for k, v in anno.items()}
+                annos.append(anno)
+            annos[-1]['sample_idx'] = np.array([idx] * len(annos[-1]['score']), dtype=np.int64)
+            gt_annos += annos
+        return gt_annos
+    def bbox2result_kitti(self, 
+                          net_outputs, 
+                          class_names, 
+                          pklfile_prefix=None, 
+                          submission_prefix=None):
+        assert len(net_outputs) == len(self.data_infos)
+        det_annos = []
+       
+        print('\nConverting prediction to KITTI format') 
+        for idx, pred_dicts in enumerate(mmcv.track_iter_progress(net_outputs)):
+            annos = []
+            info = self.data_infos[idx]
+            sample_idx = info['image']['image_idx']
+            box_dict = self.convert_valid_bboxes(pred_dicts['pts_bbox'], info)
+            
+            if len(box_dict['box3d_lidar'])>0:     
+                if 'scores' in box_dict:      
+                    scores = box_dict['scores']
+                else:
+                    scores = np.ones(len(box_dict['label_preds']))
+                box_preds_lidar = box_dict['box3d_lidar']  
+                label_preds = box_dict['label_preds'] 
+                anno = {
+                   'name': [], 
+                   'truncated': [],
+                   'occluded': [],
+                   'alpha': [], 
+                   'bbox': [],
+                   'dimensions': [],
+                   'location': [], 
+                   'rotation_y': [],
+                   'score': [] 
+                
+                }
+                for box_lidar, score, label in zip(box_preds_lidar, scores,label_preds): 
+                    #bbox[2:] = np.minimum(bbox[2:], image_shape[::-1])
+                    #bbox[:2] = np.maximum(bbox[:2], [0, 0])
+                    anno['name'].append(class_names[int(label)]) 
+                    anno['truncated'].append(0.0)
+                    anno['occluded'].append(0) 
+                    anno['alpha'].append(-np.arctan2(-box_lidar[1], box_lidar[0])) 
+                    anno['bbox'].append(np.zeros(4))
+                    anno['dimensions'].append(box_lidar[3:6])
+                    anno['location'].append(box_lidar[:3])
+                    anno['rotation_y'].append(box_lidar[6]) 
+                    anno['score'].append(score)
+                    
+                anno = {k: np.stack(v) for k, v in anno.items()} 
+                annos.append(anno)
+            else:
+                annos.append({
+                     'name': np.array([]), 
+                     'truncated': np.array([]),
+                     'occluded': np.array([]),
+                     'alpha': np.array([]), 
+                     'bbox': np.zeros([0, 4]),
+                     'dimensions': np.zeros([0, 3]), 
+                     'location': np.zeros([0, 3]), 
+                     'rotation_y': np.array([]),
+                     'score': np.array([]),
+                })
+            
+            annos[-1]['sample_idx'] = np.array([idx] * len(annos[-1]['score']), dtype=np.int64)   
+            det_annos += annos
+        return det_annos
 
     def bbox2result_deeproute(self,
                           net_outputs,
@@ -353,8 +506,6 @@ class DeeprouteDataset(Custom3DDataset):
             class_names (list[String]): A list of class names.
             save_folder : save prediction result as txt for original deeproute evaluation pipeline
         """
-        #print("bbox2result")
-        #embed()
         assert len(net_outputs) == len(self.data_infos)
 
        
@@ -442,8 +593,9 @@ class DeeprouteDataset(Custom3DDataset):
                 - sample_idx (int): Sample index.
         """
         # TODO: refactor this function
-        #print("convert_valid_bbox")
-        #embed()
+        print("convert_valid_bbox")
+        
+   
         box_preds = box_dict['boxes_3d']
         scores = box_dict['scores_3d']
         labels = box_dict['labels_3d']
@@ -465,7 +617,8 @@ class DeeprouteDataset(Custom3DDataset):
         limit_range = box_preds.tensor.new_tensor(self.pcd_limit_range)
         valid_pcd_inds = ((box_preds.center > limit_range[:3]) &
                           (box_preds.center < limit_range[3:]))
-        valid_inds = valid_pcd_inds
+        valid_inds = valid_pcd_inds.all(-1)
+        
         if valid_inds.sum() > 0:
             return dict(
                 box3d_lidar=box_preds[valid_inds].tensor.numpy(),

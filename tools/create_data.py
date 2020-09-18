@@ -43,7 +43,14 @@ def deeproute_data_prep(root_path, info_prefix, version,dataset_name, out_dir):
         version(str):Dataset version.
         out_dir(str): Output directory of the groundtruth database info.
     """
+    
     deeproute_converter.create_deeproute_info_file(root_path, info_prefix)
+    create_groundtruth_database(
+    'DeeprouteDataset', 
+    root_path,
+    info_prefix,
+    f'{out_dir}/{info_prefix}_infos_test.pkl',
+    ) 
     create_groundtruth_database(
     'DeeprouteDataset',
     root_path,
