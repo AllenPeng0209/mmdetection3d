@@ -353,7 +353,7 @@ class DeeprouteDataset(Custom3DDataset):
             gt_annos = [info['annos'] for info in self.data_infos]
             dt_annos = results
             gt_annos ,dt_annos= self.deeproute2kitti_format(gt_annos,dt_annos)
-            ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos,tuple(set(self.CLASSES_EVAL)))    
+            ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos,                                                                     tuple(set(self.CLASSES_EVAL)), out_dir)    
             print_log('\n' + ap_result_str, logger=logger)
             return ap_dict
 
@@ -499,7 +499,6 @@ class DeeprouteDataset(Custom3DDataset):
                           ):
         """Convert 3D detection results to deeproute format for evaluation and save to txt 
         
-
         Args:
             net_outputs (list[np.ndarray]): List of array storing the \
                 inferenced bounding boxes and scores.
