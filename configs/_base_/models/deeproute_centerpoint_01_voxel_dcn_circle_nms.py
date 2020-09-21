@@ -41,9 +41,9 @@ model = dict(
         tasks=[
             dict(num_class=4, class_names=['CAR','CAR_HARD','VAN','VAN_HARD']),
             dict(num_class=5, class_names=['TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD']),
-            dict(num_class=2, class_names=['PEDESTRIAN', 'PEDESTRIAN_HARD']),
+            dict(num_class=3, class_names=['PEDESTRIAN', 'PEDESTRIAN_HARD','CONE']),
             dict(num_class=4, class_names=['CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD']),
-            dict(num_class=1, class_names=['CONE']),
+            #dict(num_class=1, class_names=['CONE']),
         ],
         common_heads={
             'reg': (2, 2),
@@ -82,7 +82,7 @@ test_cfg = dict(
         post_center_limit_range=[-80, -80, -10.0, 80, 80, 10.0],
         max_per_img=500,
         max_pool_nms=False,
-        min_radius=[4, 12, 10, 1, 0.85, 0.175],
+        min_radius=[4, 12, 0.175, 0.85],
         post_max_size=83,
         score_threshold=0.1,
         pc_range=point_cloud_range[:2],

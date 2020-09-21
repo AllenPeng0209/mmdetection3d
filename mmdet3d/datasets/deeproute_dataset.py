@@ -120,11 +120,11 @@ class DeeprouteDataset(Custom3DDataset):
         
         if self.test_mode:
             if self.valid_mode:
-                pts_filename = osp.join('./data/deeproute_mini/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
+                pts_filename = osp.join(self.data_root+'/validating', self.pts_prefix,idx[0],idx[1]+'.bin')
             else:
-                pts_filename = osp.join('./data/deeproute_mini/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
+                pts_filename = osp.join(self.data_root+'/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
         else:
-            pts_filename = osp.join('./data/deeproute_mini/training', self.pts_prefix,idx[0],idx[1]+'.bin')
+            pts_filename = osp.join(self.data_root+'/training', self.pts_prefix,idx[0],idx[1]+'.bin')
         return pts_filename
 
     def get_data_info(self, index):
@@ -232,6 +232,36 @@ class DeeprouteDataset(Custom3DDataset):
                 bboxes=gt_bboxes,labels=gt_labels,
                 gt_names=gt_names)
         return anns_results
+    def get_anno_info_convert_from_txt(self,annos , idx):
+        annos = annos[idx]
+        gt_bboxes_3d = []
+        for i in range(len(annos['location'])):
+            loc = list(annos['location'][i].values())
+            dims = list(annos['dimensions'][i].values())
+            rots = [annos['rotation_y'][i]]
+            gt_bboxes_3d.append(loc+dims+rots)
+        gt_bboxes_3d = np.array(gt_bboxes_3d)
+        gt_bboxes_3d = LiDARInstance3DBoxes(gt_bboxes_3d, box_dim=gt_bboxes_3d.shape[-1],
+                       ).convert_to(self.box_mode_3d)
+        gt_names = annos['type']
+        gt_bboxes = annos['bbox2d']
+        bbox_2d=[]
+        gt_labels = []
+        for cat in gt_names:
+            if cat in self.class_map:
+                gt_labels.append(self.CLASSES.index(cat))
+            else:
+                gt_labels.append(-1)
+        gt_labels = np.array(gt_labels)
+        gt_labels_3d = copy.deepcopy(gt_labels)
+        
+        anns_results = dict(
+                gt_bboxes_3d=gt_bboxes_3d,
+                gt_labels_3d=gt_labels_3d,
+                bboxes=gt_bboxes,labels=gt_labels,
+                gt_names=gt_names,
+                scores = annos['score'])
+        return anns_results
 
     def drop_arrays_by_name(self, gt_names, used_classes):
         """Drop irrelevant ground truths by name.
@@ -300,11 +330,9 @@ class DeeprouteDataset(Custom3DDataset):
         result_files = self.bbox2result_deeproute(outputs, self.CLASSES_EVAL,
                                                  save_folder)
         return result_files
-    def deeproute2kitti_format(self, gt_annos, dt_annos):
+    def deeproute2kitti_gt_format(self, gt_annos):
 
         
-        #convert dt_anno to kitti format
-        dt_annos =  self.bbox2result_kitti(dt_annos, self.CLASSES_EVAL)
         #convert gt_anno to kitti format
         deeproute_gt_anno=[]
         for i in range(len(gt_annos)):
@@ -315,9 +343,21 @@ class DeeprouteDataset(Custom3DDataset):
             info['pts_bbox']['scores_3d'] = torch.tensor(np.ones(len(info['pts_bbox']['labels_3d'])))
             deeproute_gt_anno.append(info)
         gt_annos = self.gt_anno2kitti(deeproute_gt_anno, self.CLASSES_EVAL)
-        return gt_annos, dt_annos
+        return gt_annos
+    def deeprouteresult_txt_2kiiti_format(self, txt_annos):
+        gt_annos = [] 
+        for i in range(len(txt_annos)):
+            info = {}
+            info['pts_bbox'] = self.get_anno_info_convert_from_txt(txt_annos,i) 
+            info['pts_bbox']['boxes_3d'] = info['pts_bbox'].pop('gt_bboxes_3d') 
+            info['pts_bbox']['labels_3d'] = torch.tensor(info['pts_bbox'].pop('gt_labels_3d'))
+            info['pts_bbox']['scores_3d'] =  torch.tensor(info['pts_bbox'].pop('scores')) 
+            gt_annos.append(info)
+        gt_annos = self.gt_anno2kitti(gt_annos, self.CLASSES_EVAL)
+    def deeproute2kitti_dt_format(self, dt_annos):
+        dt_annos =  self.bbox2result_kitti(dt_annos, self.CLASSES_EVAL)
+        return dt_annos
 
-        
 
 
     def evaluate(self,
@@ -348,12 +388,38 @@ class DeeprouteDataset(Custom3DDataset):
         """
         if use_kitti_eval:
             from mmdet3d.core.evaluation import deeproute2kitti_eval
+            evaluation_from_txt=True
+            if evaluation_from_txt:
+                
+                gt_annos = [info['annos'] for info in self.data_infos]
+                gt_annos = self.deeproute2kitti_gt_format(gt_annos) 
+                #dt_label_paths = []
+                from tools.data_converter.deeproute_data_utils import get_label_anno
+                import glob
+                dt_label_paths = glob.glob("../detections-0.001/*/*.txt")  
+                '''
+                for filesname in txt_files:
+                    with open(filesname) as json_file:
+                        dt_label_paths.append()
+                '''
+                dt_annos= [] 
+                for dt_label_path in dt_label_paths:
+                    dt_annos.append(get_label_anno(dt_label_path))
+                #gt_annos = self.deeproute2kitti_gt_format(gt_annos)
+                dt_annos = self.deeprouteresult_txt_2kiiti_format(dt_annos)
+                embed()
+                ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos, tuple(set(self.CLASSES_EVAL)), out_dir) 
+
+                print_log('\n' + ap_result_str, logger=logger)
+                return ap_dict
+            from mmdet3d.core.evaluation import deeproute2kitti_eval
             #result_files, tmp_dir = self.format_results(results, pklfile_prefix)
             # load gt_data and tranform deeproute data to kitti format
             gt_annos = [info['annos'] for info in self.data_infos]
             dt_annos = results
-            gt_annos ,dt_annos= self.deeproute2kitti_format(gt_annos,dt_annos)
-            ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos,                                                                     tuple(set(self.CLASSES_EVAL)), out_dir)    
+            gt_annos = self.deeproute2kittii_gt_format(gt_annos)
+            dt_annos = self.deeproute2kittii_dt_format(dt_annos)
+            ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos, tuple(set(self.CLASSES_EVAL)), out_dir)    
             print_log('\n' + ap_result_str, logger=logger)
             return ap_dict
 
@@ -423,7 +489,7 @@ class DeeprouteDataset(Custom3DDataset):
                     anno['pts_in_box'].append(pts_in_box)
                 anno = {k: np.stack(v) for k, v in anno.items()}
                 annos.append(anno)
-            annos[-1]['sample_idx'] = np.array([idx] * len(annos[-1]['score']), dtype=np.int64)
+            #annos[-1]['sample_idx'] = np.array([idx] * len(annos[-1]['score']), dtype=np.int64)
             gt_annos += annos
         return gt_annos
     def bbox2result_kitti(self, 
@@ -600,8 +666,7 @@ class DeeprouteDataset(Custom3DDataset):
         labels = box_dict['labels_3d']
         sample_idx = info['image']['image_idx']
         # TODO: remove the hack of yaw
-        box_preds.tensor[:, -1] = box_preds.tensor[:, -1] - np.pi
-        box_preds.limit_yaw(offset=0.5, period=np.pi * 2)
+        
 
         if len(box_preds) == 0:
             return dict(
@@ -609,7 +674,8 @@ class DeeprouteDataset(Custom3DDataset):
                 scores=np.zeros([0]),
                 label_preds=np.zeros([0, 4]),
                 sample_idx=sample_idx)
-
+        box_preds.tensor[:, -1] = box_preds.tensor[:, -1] - np.pi
+        box_preds.limit_yaw(offset=0.5, period=np.pi * 2)
         # Post-processing
         # check box_preds_camera
         # check box_preds
@@ -617,7 +683,6 @@ class DeeprouteDataset(Custom3DDataset):
         valid_pcd_inds = ((box_preds.center > limit_range[:3]) &
                           (box_preds.center < limit_range[3:]))
         valid_inds = valid_pcd_inds.all(-1)
-        
         if valid_inds.sum() > 0:
             return dict(
                 box3d_lidar=box_preds[valid_inds].tensor.numpy(),

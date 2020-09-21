@@ -29,22 +29,22 @@ db_sampler = dict(
     prepare=dict(
         filter_by_difficulty=[-1],
         filter_by_min_points=dict(
-            CAR=5,
-            CAR_HARD=5,
-            VAN=5,
-            VAN_HARD=5,
-            TRUCK=5,
-            TRUCK_HARD=5,
-            BIG_TRUCK=5,
-            BUS =5,
-            BUS_HARD=5,
-            PEDESTRIAN=5,
-            PEDESTRIAN_HARD=5,
-            CYCLIST=5,
-            CYCLIST_HARD=5,
-            TRICYCLE=5,
-            TRICYCLE_HARD=5,
-            CONE=5,
+            CAR=3,
+            CAR_HARD=3,
+            VAN=3,
+            VAN_HARD=3,
+            TRUCK=3,
+            TRUCK_HARD=3,
+            BIG_TRUCK=3,
+            BUS =3,
+            BUS_HARD=3,
+            PEDESTRIAN=3,
+            PEDESTRIAN_HARD=3,
+            CYCLIST=3,
+            CYCLIST_HARD=3,
+            TRICYCLE=3,
+            TRICYCLE_HARD=3,
+            CONE=3,
 
         )),
     classes=class_names,
@@ -98,7 +98,7 @@ train_pipeline = [
     dict(type='PointShuffle'),
     dict(type='GT_Points_3D'),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
-    dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_points_3d'])
+    dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d','gt_points_3d'])
 ]
 test_pipeline = [
     dict(
@@ -120,7 +120,7 @@ test_pipeline = [
             dict(type='RandomFlip3D'),
             dict(
                 type='PointsRangeFilter', point_cloud_range=point_cloud_range),
-            dict(type='GT_Points_3D') ,
+            #dict(type='GT_Points_3D') ,
             dict(
                 type='DefaultFormatBundle3D',
                 class_names=class_names,
@@ -132,7 +132,7 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=2,
-    workers_per_gpu=0,
+    workers_per_gpu=4,
     train=dict(
         type='CBGSDataset',
         dataset=dict(
@@ -188,5 +188,5 @@ momentum_config = dict(
 )
 
 # runtime settings
-total_epochs = 20
-evaluation = dict(interval=20)
+total_epochs = 100
+evaluation = dict(interval=100)

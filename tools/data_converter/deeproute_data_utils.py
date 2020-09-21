@@ -20,9 +20,9 @@ def get_deeproute_info_path(idx,
     img_idx_str += file_tail
     prefix = Path(prefix)
     if training:
-        file_path ='/home/yanlun/mmdetection3d/data/deeproute_mini'/ Path('training') / info_type / folder/ img_idx_str
+        file_path ='/home/yanlun/mmdetection3d/data/deeproute'/ Path('training') / info_type / folder/ img_idx_str
     else:
-        file_path ='/home/yanlun/mmdetection3d/data/deeproute_mini'/ Path('testing') / info_type / folder / img_idx_str
+        file_path ='/home/yanlun/mmdetection3d/data/deeproute'/ Path('testing') / info_type / folder / img_idx_str
     if exist_check and not (prefix / file_path).exists():
         raise ValueError('file not exist: {}'.format(file_path))
     if relative_path:
@@ -76,7 +76,8 @@ def get_label_anno(label_path):
         'bbox2d': [],
 	'location':[],
         'dimensions': [],
-        'rotation_y': []
+        'rotation_y': [],
+        'score':[]
     })
     with open(label_path, 'r') as f:
          
@@ -84,18 +85,30 @@ def get_label_anno(label_path):
     # if len(lines) == 0 or len(lines[0]) < 15:
     #     content = []
     # else:
-    ids, types, state, bbox2d, location, dimensions, rotation_y = [],[],[],[],[],[],[]
+    ids, types, state, bbox2d, location, dimensions, rotation_y, score = [],[],[],[],[],[],[],[]
     
     num_objects = len(objects["objects"])
     for obj in objects["objects"]:
-        ids.append(obj['id'])
+        if 'id' in obj:
+            ids.append(obj['id'])
+        else:
+            ids.append(None)
         types.append(obj['type'])
-        state.append(obj['state'])
-        bbox2d.append(obj['bounding_box2d'])
+        if 'state' in obj:
+            state.append(obj['state'])
+        else:
+            state.append(None) 
+        if 'bounding_box2d' in obj:
+            bbox2d.append(obj['bounding_box2d'])
+        else:
+            bbox2d.append(np.zeros(4)) 
         location.append(obj['position'])
         dimensions.append(obj['bounding_box'])
         rotation_y.append(obj['heading'])
-        
+        if 'score' in obj:
+            score.append(obj['score'])
+        else:
+            score.append(0)
     annotations['id'] = np.array(ids)
     annotations['type'] = np.array(types)
     annotations['state'] = np.array(state)
@@ -103,6 +116,7 @@ def get_label_anno(label_path):
     annotations['location'] = np.array(location)
     annotations['dimensions'] = np.array(dimensions)
     annotations['rotation_y'] = np.array(rotation_y)
+    annotations['score'] = np.array(score) 
     return annotations
 
 
