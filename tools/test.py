@@ -11,8 +11,8 @@ from mmdet3d.datasets import build_dataloader, build_dataset
 from mmdet3d.models import build_detector
 from mmdet.apis import multi_gpu_test, set_random_seed
 from mmdet.core import wrap_fp16_model
-from tools.fuse_conv_bn import fuse_module
-
+#from tools.fuse_conv_bn import fuse_module
+from IPython import embed
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -126,8 +126,26 @@ def main():
         model.CLASSES = dataset.CLASSES
 
     if not distributed:
+        '''       
+        #original mode
         model = MMDataParallel(model, device_ids=[0])
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
+        #debug use
+        '''
+        
+        '''
+        #get data from pickle -> for saving time and debugging 
+        import pickle 
+        outputs_pkl_path = './output.pickle'
+        with open(outputs_pkl_path,'rb') as f:
+            outputs = pickle.load(f)
+        '''
+        
+        #for load txt
+        outputs = None 
+         
+      
+ 
     else:
         model = MMDistributedDataParallel(
             model.cuda(),
@@ -135,7 +153,6 @@ def main():
             broadcast_buffers=False)
         outputs = multi_gpu_test(model, data_loader, args.tmpdir,
                                  args.gpu_collect)
-
     rank, _ = get_dist_info()
     if rank == 0:
         if args.out:

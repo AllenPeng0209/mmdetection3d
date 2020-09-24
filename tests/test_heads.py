@@ -618,20 +618,18 @@ def test_h3d_head():
     ],
                               dim=-1)
 
-    input_dict = dict(
-        fp_xyz_net0=fp_xyz,
-        hd_feature=hd_features,
-        aggregated_points=aggregated_points,
-        aggregated_features=aggregated_features,
-        seed_points=fp_xyz[0],
-        seed_indices=fp_indices[0],
-        proposal_list=proposal_list)
 
-    # prepare gt label
-    from mmdet3d.core.bbox import DepthInstance3DBoxes
-    gt_bboxes_3d = [
-        DepthInstance3DBoxes(torch.rand([4, 7], dtype=torch.float32).cuda()),
-        DepthInstance3DBoxes(torch.rand([4, 7], dtype=torch.float32).cuda())
+def test_dcn_center_head():
+    if not torch.cuda.is_available():
+        pytest.skip('test requires GPU and CUDA')
+    set_random_seed(0)
+    tasks = [
+        dict(num_class=1, class_names=['car']),
+        dict(num_class=2, class_names=['truck', 'construction_vehicle']),
+        dict(num_class=2, class_names=['bus', 'trailer']),
+        dict(num_class=1, class_names=['barrier']),
+        dict(num_class=2, class_names=['motorcycle', 'bicycle']),
+        dict(num_class=2, class_names=['pedestrian', 'traffic_cone']),
     ]
     gt_labels_3d = torch.randint(0, 18, [1, 4]).cuda()
     gt_labels_3d = [gt_labels_3d[0]]
@@ -822,7 +820,6 @@ def test_dcn_center_head():
         loss_cls=dict(type='GaussianFocalLoss', reduction='mean'),
         loss_bbox=dict(type='L1Loss', reduction='none', loss_weight=0.25),
         norm_bbox=True)
-    # model training and testing settings
     train_cfg = dict(
         grid_size=[512, 512, 1],
         point_cloud_range=[-51.2, -51.2, -5., 51.2, 51.2, 3.],

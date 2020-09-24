@@ -29,11 +29,8 @@ class_names = [
 # See https://mmcv.readthedocs.io/en/latest/api.html#mmcv.fileio.FileClient
 # for more details.
 file_client_args = dict(
-    backend='petrel',
-    path_mapping=dict({
-        './data/nuscenes/': 's3://nuscenes/nuscenes/',
-        'data/nuscenes/': 's3://nuscenes/nuscenes/'
-    }))
+    backend='disk',
+    )
 train_pipeline = [
     dict(
         type='LoadPointsFromFile',

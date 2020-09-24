@@ -1,13 +1,13 @@
 import numpy as np
 from mmcv import is_tuple_of
 from mmcv.utils import build_from_cfg
-
+import mmcv
 from mmdet3d.core.bbox import box_np_ops
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import RandomFlip
 from ..registry import OBJECTSAMPLERS
 from .data_augment_utils import noise_per_object_v3_
-
+from IPython import embed
 
 @PIPELINES.register_module()
 class RandomFlip3D(RandomFlip):
@@ -128,6 +128,7 @@ class ObjectSample(object):
             db_sampler['type'] = 'DataBaseSampler'
         self.db_sampler = build_from_cfg(db_sampler, OBJECTSAMPLERS)
 
+        self.points_loader = mmcv.build_from_cfg(self.sampler_cfg['points_loader'], PIPELINES) 
     @staticmethod
     def remove_points_in_boxes(points, boxes):
         """Remove the points in the sampled bounding boxes.
@@ -156,9 +157,9 @@ class ObjectSample(object):
         """
         gt_bboxes_3d = input_dict['gt_bboxes_3d']
         gt_labels_3d = input_dict['gt_labels_3d']
-
         # change to float for blending operation
         points = input_dict['points']
+
         if self.sample_2d:
             img = input_dict['img']
             gt_bboxes_2d = input_dict['gt_bboxes']
@@ -176,13 +177,11 @@ class ObjectSample(object):
             sampled_gt_bboxes_3d = sampled_dict['gt_bboxes_3d']
             sampled_points = sampled_dict['points']
             sampled_gt_labels = sampled_dict['gt_labels_3d']
-
             gt_labels_3d = np.concatenate([gt_labels_3d, sampled_gt_labels],
                                           axis=0)
             gt_bboxes_3d = gt_bboxes_3d.new_box(
                 np.concatenate(
                     [gt_bboxes_3d.tensor.numpy(), sampled_gt_bboxes_3d]))
-
             points = self.remove_points_in_boxes(points, sampled_gt_bboxes_3d)
             # check the points dimension
             dim_inds = points.shape[-1]
@@ -196,11 +195,11 @@ class ObjectSample(object):
 
                 input_dict['gt_bboxes'] = gt_bboxes_2d
                 input_dict['img'] = sampled_dict['img']
-
+        #TODO here we can find all the gt_bbox from db and caculate the mean and angle
         input_dict['gt_bboxes_3d'] = gt_bboxes_3d
         input_dict['gt_labels_3d'] = gt_labels_3d.astype(np.long)
         input_dict['points'] = points
-
+        
         return input_dict
 
     def __repr__(self):
@@ -348,7 +347,6 @@ class GlobalRotScaleTrans(object):
         if not isinstance(rotation, list):
             rotation = [-rotation, rotation]
         noise_rotation = np.random.uniform(rotation[0], rotation[1])
-
         for key in input_dict['bbox3d_fields']:
             if len(input_dict[key].tensor) != 0:
                 points, rot_mat_T = input_dict[key].rotate(
@@ -471,12 +469,11 @@ class ObjectRangeFilter(object):
         # len(gt_labels_3d) == 1, where mask=1 will be interpreted
         # as gt_labels_3d[1] and cause out of index error
         gt_labels_3d = gt_labels_3d[mask.numpy().astype(np.bool)]
-
         # limit rad to [-pi, pi]
         gt_bboxes_3d.limit_yaw(offset=0.5, period=2 * np.pi)
         input_dict['gt_bboxes_3d'] = gt_bboxes_3d
         input_dict['gt_labels_3d'] = gt_labels_3d
-
+        
         return input_dict
 
     def __repr__(self):
@@ -550,7 +547,6 @@ class ObjectNameFilter(object):
                                   dtype=np.bool_)
         input_dict['gt_bboxes_3d'] = input_dict['gt_bboxes_3d'][gt_bboxes_mask]
         input_dict['gt_labels_3d'] = input_dict['gt_labels_3d'][gt_bboxes_mask]
-
         return input_dict
 
     def __repr__(self):

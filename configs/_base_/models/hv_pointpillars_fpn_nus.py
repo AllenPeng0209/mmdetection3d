@@ -19,7 +19,7 @@ model = dict(
         voxel_size=voxel_size,
         with_cluster_center=True,
         with_voxel_center=True,
-        point_cloud_range=[-50, -50, -5, 50, 50, 3],
+        point_cloud_range=[-80, -80, -5, 80, 80, 3],
         norm_cfg=dict(type='naiveSyncBN1d', eps=1e-3, momentum=0.01)),
     pts_middle_encoder=dict(
         type='PointPillarsScatter', in_channels=64, output_shape=[400, 400]),
@@ -40,7 +40,7 @@ model = dict(
         num_outs=3),
     pts_bbox_head=dict(
         type='Anchor3DHead',
-        num_classes=10,
+        num_classes=9,
         in_channels=256,
         feat_channels=256,
         use_direction_classifier=True,

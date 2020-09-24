@@ -6,7 +6,7 @@ from os import path as osp
 
 from mmdet3d.core import Box3DMode, show_result
 from mmdet.models.detectors import BaseDetector
-
+from IPython import embed
 
 class Base3DDetector(BaseDetector):
     """Base class for detectors."""

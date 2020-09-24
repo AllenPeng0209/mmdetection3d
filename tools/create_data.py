@@ -6,6 +6,7 @@ from tools.data_converter import kitti_converter as kitti
 from tools.data_converter import lyft_converter as lyft_converter
 from tools.data_converter import nuscenes_converter as nuscenes_converter
 from tools.data_converter import waymo_converter as waymo
+from tools.data_converter import deeproute_converter as deeproute_converter
 from tools.data_converter.create_gt_database import create_groundtruth_database
 
 
@@ -32,6 +33,36 @@ def kitti_data_prep(root_path, info_prefix, version, out_dir):
         mask_anno_path='instances_train.json',
         with_mask=(version == 'mask'))
 
+def deeproute_data_prep(root_path, info_prefix, version,dataset_name, out_dir):
+    """
+    Prepare data related to deeproute 
+    Related data consists of '.pkl' files recording basic infos,
+    2D annatations and groundtruth database.
+    Args:
+        root_path(str): Path of dataset root.
+        info_prefix(str): the prefix of info filenamses.
+        version(str):Dataset version.
+        out_dir(str): Output directory of the groundtruth database info.
+    """
+    
+    deeproute_converter.create_deeproute_info_file(root_path, info_prefix)
+    create_groundtruth_database(
+    'DeeprouteDataset', 
+    root_path,
+    info_prefix,
+    f'{out_dir}/{info_prefix}_infos_test.pkl',
+    ) 
+    create_groundtruth_database(
+    'DeeprouteDataset',
+    root_path,
+    info_prefix,
+    f'{out_dir}/{info_prefix}_infos_train.pkl',
+    )
+
+
+
+
+
 
 def nuscenes_data_prep(root_path,
                        info_prefix,
@@ -52,8 +83,8 @@ def nuscenes_data_prep(root_path,
         out_dir (str): Output directory of the groundtruth database info.
         max_sweeps (int): Number of input consecutive frames. Default: 10
     """
-    nuscenes_converter.create_nuscenes_infos(
-        root_path, info_prefix, version=version, max_sweeps=max_sweeps)
+    #nuscenes_converter.create_nuscenes_infos(
+    #    root_path, info_prefix, version=version, max_sweeps=max_sweeps)
 
     if version == 'v1.0-test':
         return
@@ -239,6 +270,13 @@ if __name__ == '__main__':
             dataset_name='NuScenesDataset',
             out_dir=args.out_dir,
             max_sweeps=args.max_sweeps)
+    elif args.dataset == 'deeproute':
+        deeproute_data_prep(
+	root_path=args.root_path,
+	info_prefix=args.extra_tag,
+	version=args.version,
+        dataset_name = 'deeproute',
+	out_dir=args.out_dir)
     elif args.dataset == 'lyft':
         train_version = f'{args.version}-train'
         lyft_data_prep(
@@ -264,6 +302,13 @@ if __name__ == '__main__':
             out_dir=args.out_dir,
             workers=args.workers,
             max_sweeps=args.max_sweeps)
+    elif args.dataset == 'deeproute':
+        deeproute_data_prep(
+	root_path=args.root_path, 
+        info_prefix=args.extra_tag, 
+        dataset_name='DeeprouteDataset', 
+        outdir=args.out_dir, 
+        max_sweeps=args.max_sweeps)
     elif args.dataset == 'scannet':
         scannet_data_prep(
             root_path=args.root_path,

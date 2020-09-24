@@ -7,7 +7,7 @@ from mmdet3d.core.bbox import box_np_ops
 from mmdet3d.datasets.pipelines import data_augment_utils
 from mmdet.datasets import PIPELINES
 from ..registry import OBJECTSAMPLERS
-
+import math
 
 class BatchSampler:
     """Class for sampling specific category of ground truths.
@@ -207,6 +207,7 @@ class DataBaseSampler(object):
         sample_num_per_class = []
         for class_name, max_sample_num in zip(self.sample_classes,
                                               self.sample_max_nums):
+            
             class_label = self.cat2label[class_name]
             # sampled_num = int(max_sample_num -
             #                   np.sum([n == class_name for n in gt_names]))
@@ -254,9 +255,6 @@ class DataBaseSampler(object):
                 results = dict(pts_filename=file_path)
                 s_points = self.points_loader(results)['points']
                 s_points[:, :3] += info['box3d_lidar'][:3]
-
-                count += 1
-
                 s_points_list.append(s_points)
 
             gt_labels = np.array([self.cat2label[s['name']] for s in sampled],
@@ -272,7 +270,6 @@ class DataBaseSampler(object):
                 np.arange(gt_bboxes.shape[0],
                           gt_bboxes.shape[0] + len(sampled))
             }
-
         return ret
 
     def sample_class_v2(self, name, num, gt_bboxes):
@@ -312,4 +309,5 @@ class DataBaseSampler(object):
                 coll_mat[:, i] = False
             else:
                 valid_samples.append(sampled[i - num_gt])
+        
         return valid_samples

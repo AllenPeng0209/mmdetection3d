@@ -4,7 +4,7 @@ import pyquaternion
 import tempfile
 from nuscenes.utils.data_classes import Box as NuScenesBox
 from os import path as osp
-
+from IPython import embed
 from mmdet.datasets import DATASETS
 from ..core import show_result
 from ..core.bbox import Box3DMode, LiDARInstance3DBoxes
@@ -406,6 +406,7 @@ class NuScenesDataset(Custom3DDataset):
 
         detail['{}/NDS'.format(metric_prefix)] = metrics['nd_score']
         detail['{}/mAP'.format(metric_prefix)] = metrics['mean_ap']
+        embed()
         return detail
 
     def format_results(self, results, jsonfile_prefix=None):

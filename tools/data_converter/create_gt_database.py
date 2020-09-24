@@ -6,11 +6,10 @@ from mmcv.ops import roi_align
 from os import path as osp
 from pycocotools import mask as maskUtils
 from pycocotools.coco import COCO
-
+from IPython import embed
 from mmdet3d.core.bbox import box_np_ops as box_np_ops
 from mmdet3d.datasets import build_dataset
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
-
 
 def _poly2mask(mask_ann, img_h, img_w):
     if isinstance(mask_ann, list):
@@ -118,7 +117,8 @@ def create_groundtruth_database(dataset_class_name,
                                 lidar_only=False,
                                 bev_only=False,
                                 coors_range=None,
-                                with_mask=False):
+                                with_mask=False,
+                                add_gt_points_3d=False):
     """Given the raw data, generate the ground truth database.
 
     Args:
@@ -208,8 +208,24 @@ def create_groundtruth_database(dataset_class_name,
                     file_client_args=file_client_args)
             ])
 
+    
+    elif dataset_class_name =='DeeprouteDataset':
+        file_client_args = dict(backend='disk')
+        dataset_cfg.update(
+            test_mode=False,
+            modality=dict( 
+                use_lidar=True,
+                use_depth=False,
+                use_lidar_intensity=False,
+                )  
+                ,  
+            pipeline=[dict(type='LoadPointsFromFile',load_dim=3, use_dim=3,   
+            file_client_args=file_client_args),  
+            dict(  type='LoadAnnotations3D', 
+            with_bbox_3d=True,  with_label_3d=True,
+            file_client_args=file_client_args)  ])
+    
     dataset = build_dataset(dataset_cfg)
-
     if database_save_path is None:
         database_save_path = osp.join(data_path, f'{info_prefix}_gt_database')
     if db_info_save_path is None:
@@ -277,7 +293,7 @@ def create_groundtruth_database(dataset_class_name,
             #     torch.Tensor(mask_inds).long(), object_img_patches)
             object_img_patches, object_masks = crop_image_patch(
                 gt_boxes, gt_masks, mask_inds, annos['img'])
-
+        gt_points_3d = [] 
         for i in range(num_obj):
             filename = f'{image_idx}_{names[i]}_{i}.bin'
             abs_filepath = osp.join(database_save_path, filename)
@@ -298,6 +314,35 @@ def create_groundtruth_database(dataset_class_name,
 
             with open(abs_filepath, 'w') as f:
                 gt_points.tofile(f)
+            if add_gt_points_3d:
+                #calculate points feature in the box
+                #open the pickle file 
+                #update those result to the pickle
+                
+                if len(gt_points)>=5:
+                    gt_points_3d_mean = np.mean(gt_points,axis=0)
+                    gt_points_3d_median = np.median(gt_points, axis=0)
+                    gt_points_3d_length = np.array(max(gt_points[:,0])-min(gt_points[:,0])).reshape(1)
+                    gt_points_3d_width = np.array(max(gt_points[:,1])-min(gt_points[:,1])).reshape(1)
+                    gt_points_3d_height = np.array(max(gt_points[:,2])-min(gt_points[:,2])).reshape(1)
+                    #gt_points_3d_angle2center = math.atan2(gt_points_3d_mean[1],gt_points_3d_mean[0])
+                    gt_points_3d_obj = np.concatenate((gt_points_3d_mean, gt_points_3d_median,
+                                                      gt_points_3d_length,gt_points_3d_width
+                                                      ,gt_points_3d_height), axis=0)
+                    gt_points_3d.append(gt_points_3d_obj)
+          
+                else:
+                    gt_points_3d_mean = np.zeros(3)
+                    gt_points_3d_median =  np.zeros(3)     
+                    gt_points_3d_length =  np.zeros(1)    
+                    gt_points_3d_width =  np.zeros(1)     
+                    gt_points_3d_height =  np.zeros(1)     
+                    #gt_points_3d_angle2center = math.atan2(gt_points_3d_mean[1],gt_points_3d_mean[0])
+                    gt_points_3d_obj = np.concatenate((gt_points_3d_mean, gt_points_3d_median,
+                                                      gt_points_3d_length,gt_points_3d_width
+                                                      ,gt_points_3d_height), axis=0)
+                    gt_points_3d.append(gt_points_3d_obj)
+                
 
             if (used_classes is None) or names[i] in used_classes:
                 db_info = {
@@ -323,9 +368,17 @@ def create_groundtruth_database(dataset_class_name,
                     all_db_infos[names[i]].append(db_info)
                 else:
                     all_db_infos[names[i]] = [db_info]
-
+        if add_gt_points_3d:
+            
+            gt_points_3d = np.stack( gt_points_3d )
+            train_annos[j]['annos']['gt_points_3d']= gt_points_3d
+            #check gt_points_3d shape is the same as labels.
+            #if gt_points_3d.shape[0] != gt_boxes_3d.shape[0]:
+    if add_gt_points_3d:
+        with open(train_pkl_path, 'wb') as f:
+            pickle.dump(train_annos, f)     
     for k, v in all_db_infos.items():
         print(f'load {len(v)} {k} database infos')
-
+         
     with open(db_info_save_path, 'wb') as f:
         pickle.dump(all_db_infos, f)

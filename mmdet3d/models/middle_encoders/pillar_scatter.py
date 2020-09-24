@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-
+from IPython import embed
 from ..registry import MIDDLE_ENCODERS
 
 
@@ -92,7 +92,7 @@ class PointPillarsScatter(nn.Module):
         batch_canvas = torch.stack(batch_canvas, 0)
 
         # Undo the column stacking to final 4-dim tensor
-        batch_canvas = batch_canvas.view(batch_size, self.in_channels, self.ny,
-                                         self.nx)
+        
+        batch_canvas = batch_canvas.view(batch_size, self.in_channels, self.ny, self.nx)
 
         return batch_canvas

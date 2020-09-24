@@ -10,7 +10,7 @@ from mmdet.core import (build_anchor_generator, build_assigner,
 from mmdet.models import HEADS
 from ..builder import build_loss
 from .train_mixins import AnchorTrainMixin
-
+from IPython import embed
 
 @HEADS.register_module()
 class Anchor3DHead(nn.Module, AnchorTrainMixin):

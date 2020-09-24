@@ -6,7 +6,7 @@ from mmdet3d.ops import Voxelization
 from mmdet.models import DETECTORS
 from .. import builder
 from .single_stage import SingleStage3DDetector
-
+from IPython import embed
 
 @DETECTORS.register_module()
 class VoxelNet(SingleStage3DDetector):

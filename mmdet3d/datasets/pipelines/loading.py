@@ -3,7 +3,7 @@ import numpy as np
 
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import LoadAnnotations
-
+from IPython import embed
 
 @PIPELINES.register_module()
 class LoadMultiViewImageFromFiles(object):
@@ -446,7 +446,6 @@ class LoadAnnotations3D(LoadAnnotations):
         """
         results['gt_labels_3d'] = results['ann_info']['gt_labels_3d']
         return results
-
     def _load_masks_3d(self, results):
         """Private function to load 3D mask annotations.
 
@@ -519,7 +518,6 @@ class LoadAnnotations3D(LoadAnnotations):
             results = self._load_masks_3d(results)
         if self.with_seg_3d:
             results = self._load_semantic_seg_3d(results)
-
         return results
 
     def __repr__(self):

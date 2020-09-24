@@ -127,3 +127,4 @@ class AnchorFreeBBoxCoder(PartialBinBasedBBoxCoder):
         results['dir_res'] = dir_res_norm * (2 * np.pi / self.num_dir_bins)
 
         return results
+
