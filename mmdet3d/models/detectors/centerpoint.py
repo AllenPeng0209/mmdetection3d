@@ -47,6 +47,7 @@ class CenterPoint(MVXTwoStageDetector):
                           pts_feats,
                           gt_bboxes_3d,
                           gt_labels_3d,
+                          gt_points_3d,
                           img_metas,
                           gt_bboxes_ignore=None):
         """Forward function for point cloud branch.
@@ -65,7 +66,7 @@ class CenterPoint(MVXTwoStageDetector):
             dict: Losses of each branch.
         """
         outs = self.pts_bbox_head(pts_feats)
-        loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs]
+        loss_inputs = [gt_bboxes_3d, gt_labels_3d,gt_points_3d, outs]
         losses = self.pts_bbox_head.loss(*loss_inputs)
         return losses
 

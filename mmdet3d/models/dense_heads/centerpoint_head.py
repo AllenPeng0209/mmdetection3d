@@ -11,7 +11,7 @@ from mmdet3d.models.builder import HEADS, build_loss
 from mmdet3d.models.utils import clip_sigmoid
 from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu
 from mmdet.core import build_bbox_coder, multi_apply
-
+from IPython import embed
 
 @HEADS.register_module()
 class SeparateHead(nn.Module):
@@ -373,7 +373,7 @@ class CenterHead(nn.Module):
             feat = feat.view(-1, dim)
         return feat
 
-    def get_targets(self, gt_bboxes_3d, gt_labels_3d):
+    def get_targets(self, gt_bboxes_3d, gt_labels_3d, gt_points_3d=None):
         """Generate targets.
 
         Args:
@@ -394,7 +394,7 @@ class CenterHead(nn.Module):
                         boxes are valid.
         """
         heatmaps, anno_boxes, inds, masks = multi_apply(
-            self.get_targets_single, gt_bboxes_3d, gt_labels_3d)
+            self.get_targets_single, gt_bboxes_3d, gt_labels_3d, gt_points_3d)
         # transpose heatmaps, because the dimension of tensors in each task is
         # different, we have to use numpy instead of torch to do the transpose.
         heatmaps = np.array(heatmaps).transpose(1, 0).tolist()
@@ -410,7 +410,7 @@ class CenterHead(nn.Module):
         masks = [torch.stack(masks_) for masks_ in masks]
         return heatmaps, anno_boxes, inds, masks
 
-    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d):
+    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d, gt_points_3d=None):
         """Generate training targets for a single sample.
 
         Args:
@@ -451,16 +451,20 @@ class CenterHead(nn.Module):
 
         task_boxes = []
         task_classes = []
+        task_points3ds = []
         flag2 = 0
         for idx, mask in enumerate(task_masks):
             task_box = []
             task_class = []
+            task_points3d = []
             for m in mask:
                 task_box.append(gt_bboxes_3d[m])
+                task_points3d.append(gt_points_3d[m])
                 # 0 is background for each task, so we need to add 1 here.
                 task_class.append(gt_labels_3d[m] + 1 - flag2)
             task_boxes.append(torch.cat(task_box, axis=0).to(device))
             task_classes.append(torch.cat(task_class).long().to(device))
+            task_points3ds.append(torch.cat(task_points3d, axis=0).to(device))
             flag2 += len(mask)
         draw_gaussian = draw_heatmap_gaussian
         heatmaps, anno_boxes, inds, masks = [], [], [], []
@@ -498,7 +502,7 @@ class CenterHead(nn.Module):
                     # your box annotation.
                     x, y, z = task_boxes[idx][k][0], task_boxes[idx][k][
                         1], task_boxes[idx][k][2]
-
+                    
                     coor_x = (
                         x - pc_range[0]
                     ) / voxel_size[0] / self.train_cfg['out_size_factor']
@@ -510,6 +514,20 @@ class CenterHead(nn.Module):
                                           dtype=torch.float32,
                                           device=device)
                     center_int = center.to(torch.int32)
+                    
+                    #assign gravity x,y as heatmap center
+                    gravity_x ,gravity_y, gravity_z = task_points3ds[idx][k][0],    task_points3ds[idx][k][1],task_points3ds[idx][k][2]
+                    gravity_coor_x = (
+                        gravity_x - pc_range[0]
+                    ) / voxel_size[0] / self.train_cfg['out_size_factor']
+                    gravity_coor_y = (
+                        gravity_y - pc_range[1]
+                    ) / voxel_size[1] / self.train_cfg['out_size_factor']
+                    
+                    gravity_center = torch.tensor([gravity_coor_x, gravity_coor_y],
+                                          dtype=torch.float32,
+                                          device=device)
+                    gravity_center_int = gravity_center.to(torch.int32)
 
                     # throw out not in range objects to avoid out of array
                     # area when creating the heatmap
@@ -517,7 +535,7 @@ class CenterHead(nn.Module):
                             and 0 <= center_int[1] < feature_map_size[1]):
                         continue
 
-                    draw_gaussian(heatmap[cls_id], center_int, radius)
+                    draw_gaussian(heatmap[cls_id], gravity_center_int, radius)
 
                     new_idx = k
                     x, y = center_int[0], center_int[1]
@@ -541,14 +559,14 @@ class CenterHead(nn.Module):
                         #vx.unsqueeze(0),
                         #vy.unsqueeze(0)
                     ])
-
+                
             heatmaps.append(heatmap)
             anno_boxes.append(anno_box)
             masks.append(mask)
             inds.append(ind)
         return heatmaps, anno_boxes, inds, masks
 
-    def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs):
+    def loss(self, gt_bboxes_3d, gt_labels_3d, gt_points_3d, preds_dicts, **kwargs):
         """Loss function for CenterHead.
 
         Args:
@@ -561,7 +579,7 @@ class CenterHead(nn.Module):
             dict[str:torch.Tensor]: Loss of heatmap and bbox of each task.
         """
         heatmaps, anno_boxes, inds, masks = self.get_targets(
-            gt_bboxes_3d, gt_labels_3d)
+            gt_bboxes_3d, gt_labels_3d, gt_points_3d)
         loss_dict = dict()
         for task_id, preds_dict in enumerate(preds_dicts):
             # heatmap focal loss

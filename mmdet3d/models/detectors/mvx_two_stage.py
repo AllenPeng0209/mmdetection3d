@@ -232,6 +232,7 @@ class MVXTwoStageDetector(Base3DDetector):
                       img_metas=None,
                       gt_bboxes_3d=None,
                       gt_labels_3d=None,
+                      gt_points_3d=None,
                       gt_labels=None,
                       gt_bboxes=None,
                       img=None,
@@ -267,7 +268,7 @@ class MVXTwoStageDetector(Base3DDetector):
         losses = dict()
         if pts_feats:
             losses_pts = self.forward_pts_train(pts_feats, gt_bboxes_3d,
-                                                gt_labels_3d, img_metas,
+                                                gt_labels_3d, gt_points_3d, img_metas,
                                                 gt_bboxes_ignore)
             losses.update(losses_pts)
         if img_feats:
