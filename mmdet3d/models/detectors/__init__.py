@@ -1,5 +1,7 @@
 from .base import Base3DDetector
 from .centerpoint import CenterPoint
+from .sa_centerpoint import SA_CenterPoint
+
 from .dynamic_voxelnet import DynamicVoxelNet
 from .h3dnet import H3DNet
 from .mvx_faster_rcnn import DynamicMVXFasterRCNN, MVXFasterRCNN
@@ -12,5 +14,5 @@ from .voxelnet import VoxelNet
 __all__ = [
     'Base3DDetector', 'VoxelNet', 'DynamicVoxelNet', 'MVXTwoStageDetector',
     'DynamicMVXFasterRCNN', 'MVXFasterRCNN', 'PartA2', 'VoteNet', 'H3DNet',
-    'CenterPoint', 'SSD3DNet'
+    'CenterPoint', 'SSD3DNet', 'SA_CenterPoint'
 ]
