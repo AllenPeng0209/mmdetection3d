@@ -531,19 +531,20 @@ class CenterHead(nn.Module):
 
                     # throw out not in range objects to avoid out of array
                     # area when creating the heatmap
-                    if not (0 <= center_int[0] < feature_map_size[0]
-                            and 0 <= center_int[1] < feature_map_size[1]):
+                    if not (0 <= gravity_center_int[0] < feature_map_size[0]
+                            and 0 <= gravity_center_int[1] < feature_map_size[1]):
                         continue
 
                     draw_gaussian(heatmap[cls_id], gravity_center_int, radius)
-
+                    
                     new_idx = k
+                    gravity_x, gravity_y = gravity_center_int[0], gravity_center_int[1] 
                     x, y = center_int[0], center_int[1]
 
-                    assert (y * feature_map_size[0] + x <
+                    assert (gravity_y * feature_map_size[0] + gravity_x <
                             feature_map_size[0] * feature_map_size[1])
 
-                    ind[new_idx] = y * feature_map_size[0] + x
+                    ind[new_idx] = gravity_y * feature_map_size[0] + gravity_x
                     mask[new_idx] = 1
                     # TODO: support other outdoor dataset
                     #vx, vy = task_boxes[idx][k][7:]
@@ -552,14 +553,14 @@ class CenterHead(nn.Module):
                     if self.norm_bbox:
                         box_dim = box_dim.log()
                     anno_box[new_idx] = torch.cat([
-                        center - torch.tensor([x, y], device=device),
+                        center - torch.tensor([gravity_x, gravity_y], device=device),
                         z.unsqueeze(0), box_dim,
                         torch.sin(rot).unsqueeze(0),
                         torch.cos(rot).unsqueeze(0),
                         #vx.unsqueeze(0),
                         #vy.unsqueeze(0)
                     ])
-                
+            
             heatmaps.append(heatmap)
             anno_boxes.append(anno_box)
             masks.append(mask)

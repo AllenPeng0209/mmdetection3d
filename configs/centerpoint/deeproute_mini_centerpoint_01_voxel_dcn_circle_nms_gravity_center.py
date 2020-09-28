@@ -29,22 +29,22 @@ db_sampler = dict(
     prepare=dict(
         filter_by_difficulty=[-1],
         filter_by_min_points=dict(
-            CAR=3,
-            CAR_HARD=3,
-            VAN=3,
-            VAN_HARD=3,
-            TRUCK=3,
-            TRUCK_HARD=3,
-            BIG_TRUCK=3,
-            BUS =3,
-            BUS_HARD=3,
-            PEDESTRIAN=3,
-            PEDESTRIAN_HARD=3,
-            CYCLIST=3,
-            CYCLIST_HARD=3,
-            TRICYCLE=3,
-            TRICYCLE_HARD=3,
-            CONE=3,
+            CAR=10,
+            CAR_HARD=10,
+            VAN=10,
+            VAN_HARD=10,
+            TRUCK=10,
+            TRUCK_HARD=10,
+            BIG_TRUCK=10,
+            BUS =10,
+            BUS_HARD=10,
+            PEDESTRIAN=10,
+            PEDESTRIAN_HARD=10,
+            CYCLIST=10,
+            CYCLIST_HARD=10,
+            TRICYCLE=10,
+            TRICYCLE_HARD=10,
+            CONE=10,
 
         )),
     classes=class_names,
@@ -96,6 +96,7 @@ train_pipeline = [
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
     dict(type='PointShuffle'),
+    dict(type='GT_Points_3D'),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
     dict(type='Collect3D', keys=['points', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_points_3d'])
 ]
@@ -187,5 +188,5 @@ momentum_config = dict(
 )
 
 # runtime settings
-total_epochs = 100
-evaluation = dict(interval=10)
+total_epochs = 40
+evaluation = dict(interval=5)
