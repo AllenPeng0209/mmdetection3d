@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/datasets/deeproute_mini-3d.py',
-    '../_base_/models/sa_centerpoint_01voxel_second_secfpn_deeproute_mini.py',
+    '../_base_/models/sa_centerpoint_01voxel_second_secfpn_deeproute.py',
     '../_base_/schedules/cyclic_20e.py', '../_base_/default_runtime.py'
 ]
 point_cloud_range = [-80, -80, -5.0, 80, 80, 3.0] 
@@ -11,7 +11,12 @@ class_names = [
 'CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN',
 'PEDESTRIAN_HARD', 'CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD','CONE'   
 ]
-
+input_modality = dict(
+    use_lidar=True,
+    use_camera=False,
+    use_radar=False,
+    use_map=False,
+    use_external=False)
 model = dict(
     pts_voxel_layer=dict(point_cloud_range=point_cloud_range),
     pts_bbox_head=dict(bbox_coder=dict(pc_range=point_cloud_range[:2])))
@@ -22,12 +27,6 @@ test_cfg = dict(pts=dict(pc_range=point_cloud_range[:2]))
 dataset_type = 'DeeprouteDataset'
 data_root = 'data/deeproute_mini/'
 
-input_modality = dict(
-    use_lidar=True,
-    use_camera=False,
-    use_radar=False,
-    use_map=False,
-    use_external=False)
 
 file_client_args = dict(backend='disk')
 
@@ -38,22 +37,22 @@ db_sampler = dict(
     prepare=dict(
         filter_by_difficulty=[-1],
         filter_by_min_points=dict(
-            CAR=5,
-            CAR_HARD=5,
-            VAN=5,
-            VAN_HARD=5,
-            TRUCK=5,
-            TRUCK_HARD=5,
-            BIG_TRUCK=5,
-            BUS =5, 
-            BUS_HARD=5,
-            PEDESTRIAN=5,
-            PEDESTRIAN_HARD=5, 
-            CYCLIST=5,
-            CYCLIST_HARD=5,
-            TRICYCLE=5,
-            TRICYCLE_HARD=5,
-            CONE=5,)),
+            CAR=10,
+            CAR_HARD=10,
+            VAN=10,
+            VAN_HARD=10,
+            TRUCK=10,
+            TRUCK_HARD=10,
+            BIG_TRUCK=10,
+            BUS =10, 
+            BUS_HARD=10,
+            PEDESTRIAN=10,
+            PEDESTRIAN_HARD=10, 
+            CYCLIST=10,
+            CYCLIST_HARD=10,
+            TRICYCLE=10,
+            TRICYCLE_HARD=10,
+            CONE=10,)),
     classes=class_names,
     sample_groups=dict(
         CAR=2,
@@ -142,7 +141,7 @@ data = dict(
             pipeline=train_pipeline,
             classes=class_names,
             test_mode=False,
-            
+            modality=input_modality, 
             # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
             # and box_type_3d='Depth' in sunrgbd and scannet dataset.
             box_type_3d='LiDAR')),

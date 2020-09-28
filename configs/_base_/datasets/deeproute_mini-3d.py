@@ -1,6 +1,7 @@
 # If point cloud range is changed, the models should also change their point
 # cloud range accordingly
 point_cloud_range = [-80, -80, -5, 80, 80, 3]
+
 # For deeproute we usually do 5-class detection
 class_names = [
 'CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN',
@@ -16,7 +17,6 @@ input_modality = dict(
     use_radar=False,
     use_map=False,
     use_external=False)
-
 file_client_args = dict(backend='disk')
 # Uncomment the following if use ceph or other file clients.
 # See https://mmcv.readthedocs.io/en/latest/api.html#mmcv.fileio.FileClient

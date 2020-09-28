@@ -1,5 +1,6 @@
 voxel_size = [0.1, 0.1, 0.2]
 #point_cloud_range = [-80, -80, -5.0, 80, 80, 3.0]
+
 model = dict(
     type='SA_CenterPoint',
     pts_voxel_layer=dict(
