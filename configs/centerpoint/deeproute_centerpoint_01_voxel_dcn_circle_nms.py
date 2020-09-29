@@ -27,24 +27,23 @@ db_sampler = dict(
     info_path=data_root + 'deeproute_dbinfos_train.pkl',
     rate=1.0,
     prepare=dict(
-        filter_by_difficulty=[-1],
         filter_by_min_points=dict(
-            CAR=5,
-            CAR_HARD=5,
-            VAN=5,
-            VAN_HARD=5,
-            TRUCK=5,
-            TRUCK_HARD=5,
-            BIG_TRUCK=5,
-            BUS =5,
-            BUS_HARD=5,
-            PEDESTRIAN=5,
-            PEDESTRIAN_HARD=5,
-            CYCLIST=5,
-            CYCLIST_HARD=5,
-            TRICYCLE=5,
-            TRICYCLE_HARD=5,
-            CONE=5,
+            CAR=0,
+            CAR_HARD=0,
+            VAN=0,
+            VAN_HARD=0,
+            TRUCK=0,
+            TRUCK_HARD=0,
+            BIG_TRUCK=0,
+            BUS =0,
+            BUS_HARD=0,
+            PEDESTRIAN=0,
+            PEDESTRIAN_HARD=0,
+            CYCLIST=0,
+            CYCLIST_HARD=0,
+            TRICYCLE=0,
+            TRICYCLE_HARD=0,
+            CONE=0,
 
         )),
     classes=class_names,
@@ -147,7 +146,7 @@ data = dict(
     val=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_val.pkl',
+        ann_file=data_root + 'deeproute_infos_test.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -185,5 +184,5 @@ momentum_config = dict(
 )
 
 # runtime settings
-total_epochs = 20
-evaluation = dict(interval=20)
+total_epochs = 100
+evaluation = dict(interval=5)

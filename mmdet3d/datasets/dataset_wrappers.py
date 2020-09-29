@@ -51,8 +51,8 @@ class CBGSDataset(object):
         }
 
         sample_indices = []
-
-        frac = 1.0 / len(self.CLASSES)
+        fast_train_ratio=0.05
+        frac = 1.0 / len(self.CLASSES) * fast_train_ratio
         ratios = [frac / v for v in class_distribution.values()]
         for cls_inds, ratio in zip(list(class_sample_idxs.values()), ratios):
             sample_indices += np.random.choice(cls_inds,

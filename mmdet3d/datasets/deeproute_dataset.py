@@ -98,6 +98,9 @@ class DeeprouteDataset(Custom3DDataset):
         assert self.modality is not None
         self.pcd_limit_range = [-80, -80, -3, 80, 80, 1.0]
         self.pts_prefix = pts_prefix
+        if test_mode==True:
+            #subsample testset for fast validation
+            self.data_infos = self.load_annotations(self.ann_file)[::20]
     def get_cat_ids(self, idx):
         info = self.data_infos[idx]
         gt_names = set(info['annos']['type'])
@@ -118,9 +121,9 @@ class DeeprouteDataset(Custom3DDataset):
         # TODO : Modify the code to trainging and test split mode here
         
         if self.test_mode:
-            pts_filename = osp.join(self.data_root+'testing', self.pts_prefix,idx[0],idx[1]+'.bin')
+            pts_filename = osp.join(self.data_root+'/testing', self.pts_prefix,idx[0],idx[1]+'.bin')
         else:
-            pts_filename = osp.join(self.data_root+'training', self.pts_prefix,idx[0],idx[1]+'.bin')
+            pts_filename = osp.join(self.data_root+'/training', self.pts_prefix,idx[0],idx[1]+'.bin')
         return pts_filename
 
     def get_data_info(self, index):
@@ -390,14 +393,9 @@ class DeeprouteDataset(Custom3DDataset):
             #result_files, tmp_dir = self.format_results(results, pklfile_prefix)
             # load gt_data and tranform deeproute data to kitti format
             import pickle
-             
-            with open('deeproute_mini_gt.pickle', 'rb') as f:
-                gt_annos = pickle.load(f)
-           
-            #gt_annos = [info['annos'] for info in self.data_infos] 
+            gt_annos = [info['annos'] for info in self.data_infos] 
             dt_annos = results
-       
-            #gt_annos = self.deeproute2kitti_gt_format(gt_annos)
+            gt_annos = self.deeproute2kitti_gt_format(gt_annos)
             dt_annos = self.deeproute2kitti_dt_format(dt_annos)
             ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos, tuple(set(self.CLASSES_EVAL)), out_dir)    
             print_log('\n' + ap_result_str, logger=logger)
