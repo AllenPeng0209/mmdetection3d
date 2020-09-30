@@ -1,5 +1,3 @@
-import copy
-import mmcv
 import numpy as np
 import os
 import tempfile
@@ -12,7 +10,10 @@ from ..core import show_result
 from ..core.bbox import Box3DMode, LiDARInstance3DBoxes, points_cam2img
 from .custom_3d import Custom3DDataset
 import json
-from mmdet3d.core.bbox import box_np_ops as box_np_ops 
+from mmdet3d.core.bbox import box_np_ops as box_np_ops
+import copy 
+import mmcv
+
 @DATASETS.register_module()
 class DeeprouteDataset(Custom3DDataset):
     r"""KITTI Dataset.
@@ -48,6 +49,7 @@ class DeeprouteDataset(Custom3DDataset):
     CLASSES = ('CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN', 'PEDESTRIAN_HARD', 'CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD','CONE')
     #CLASSES_EVAL = ("car", "car", "pedestrian", "cyclist", "cone")
     CLASSES_EVAL = ('car','car','car','car','car','car','car','car','car','pedestrian', 'pedestrian', 'cyclist','cyclist','cyclist','cyclist','cone')
+    #CLASSES_EVAL = ('car','car','van','van','truck','truck','truck','bus','bus','pedestrian', 'pedestrian', 'cyclist','cyclist','tricycle','tricycle','cone')
 
 
     class_map = {
@@ -393,10 +395,18 @@ class DeeprouteDataset(Custom3DDataset):
             #result_files, tmp_dir = self.format_results(results, pklfile_prefix)
             # load gt_data and tranform deeproute data to kitti format
             import pickle
+            
+            with open('gt20.pickle','rb') as f:
+                gt_annos=pickle.load(f)
+            with open('dt.pickle', 'rb') as d:
+                dt_annos = pickle.load(d)
+            '''
             gt_annos = [info['annos'] for info in self.data_infos] 
             dt_annos = results
             gt_annos = self.deeproute2kitti_gt_format(gt_annos)
             dt_annos = self.deeproute2kitti_dt_format(dt_annos)
+            '''
+            embed()
             ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos, tuple(set(self.CLASSES_EVAL)), out_dir)    
             print_log('\n' + ap_result_str, logger=logger)
             return ap_dict

@@ -126,11 +126,11 @@ def main():
         model.CLASSES = dataset.CLASSES
 
     if not distributed:
-               
+        '''       
         #original mode
         model = MMDataParallel(model, device_ids=[0])
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
-        
+        '''
 
         #debug use
         '''
@@ -140,10 +140,10 @@ def main():
         with open(outputs_pkl_path,'rb') as f:
             outputs = pickle.load(f)
         '''
-        ''' 
+        
         #for load txt
         outputs = None 
-        '''
+        
       
  
     else:
