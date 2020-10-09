@@ -1,6 +1,7 @@
 _base_ = [
-    '../_base_/models/deeproute_centerpoint_01_voxel_dcn_circle_nms.py',
-    '../_base_/default_runtime.py'
+    '../_base_/datasets/deeproute-3d.py',
+    '../_base_/models/centerpoint_02pillar_second_secfpn_deeproute.py',
+    '../_base_/schedules/cyclic_20e.py', '../_base_/default_runtime.py'
 ]
 
 # If point cloud range is changed, the models should also change their point
@@ -10,16 +11,26 @@ point_cloud_range = [-80, -80, -5.0, 80, 80, 3.0]
 class_names = [
 'CAR','CAR_HARD','VAN','VAN_HARD','TRUCK','TRUCK_HARD','BIG_TRUCK','BUS','BUS_HARD','PEDESTRIAN',
 'PEDESTRIAN_HARD', 'CYCLIST','CYCLIST_HARD','TRICYCLE','TRICYCLE_HARD','CONE']
-dataset_type = 'DeeprouteDataset'
-data_root = 'data/deeproute/'
-# Input modality for nuScenes dataset, this is consistent with the submission
-# format which requires the information in input_modality.
+
 input_modality = dict(
     use_lidar=True,
     use_camera=False,
     use_radar=False,
     use_map=False,
     use_external=False)
+
+
+
+model = dict(
+    pts_voxel_layer=dict(point_cloud_range=point_cloud_range),
+    pts_voxel_encoder=dict(point_cloud_range=point_cloud_range),
+    pts_bbox_head=dict(bbox_coder=dict(pc_range=point_cloud_range[:2])))
+# model training and testing settings
+train_cfg = dict(pts=dict(point_cloud_range=point_cloud_range))
+test_cfg = dict(pts=dict(pc_range=point_cloud_range[:2]))
+
+dataset_type = 'DeeprouteDataset'
+data_root = 'data/deeproute/'
 file_client_args = dict(backend='disk')
 
 db_sampler = dict(
@@ -27,7 +38,25 @@ db_sampler = dict(
     info_path=data_root + 'deeproute_dbinfos_train.pkl',
     rate=1.0,
     prepare=dict(
-        filter_by_difficulty=[-1]),
+        filter_by_difficulty=[-1],
+        filter_by_min_points=dict(
+            CAR=0,
+            CAR_HARD=0,
+            VAN=0,
+            VAN_HARD=0,
+            TRUCK=0,
+            TRUCK_HARD=0,
+            BIG_TRUCK=0,
+            BUS =0,
+            BUS_HARD=0,
+            PEDESTRIAN=0,
+            PEDESTRIAN_HARD=0,
+            CYCLIST=0,
+            CYCLIST_HARD=0,
+            TRICYCLE=0,
+            TRICYCLE_HARD=0,
+            CONE=0,
+         )),
     classes=class_names,
     sample_groups=dict(
             CAR=2,
@@ -46,15 +75,12 @@ db_sampler = dict(
             TRICYCLE=5,
             TRICYCLE_HARD=5,
             CONE=6,
-
-    ),
-
+         ),
     points_loader=dict(
         type='LoadPointsFromFile',
         load_dim=3,
         use_dim=[0, 1, 2],
         file_client_args=file_client_args))
-    
 
 train_pipeline = [
     dict(
@@ -100,8 +126,6 @@ test_pipeline = [
                 translation_std=[0, 0, 0]),
             dict(type='RandomFlip3D'),
             dict(
-                type='PointsRangeFilter', point_cloud_range=point_cloud_range),
-            dict(
                 type='DefaultFormatBundle3D',
                 class_names=class_names,
                 with_label=False),
@@ -110,8 +134,6 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=0,
     train=dict(
         type='CBGSDataset',
         dataset=dict(
@@ -122,50 +144,10 @@ data = dict(
             classes=class_names,
             modality=input_modality,
             test_mode=False,
-            #use_valid_flag=True,
             # we use box_type_3d='LiDAR' in kitti and nuscenes dataset
             # and box_type_3d='Depth' in sunrgbd and scannet dataset.
             box_type_3d='LiDAR')),
-    val=dict(
-        type=dataset_type,
-        data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_val.pkl',
-        pipeline=test_pipeline,
-        classes=class_names,
-        modality=input_modality,
-        test_mode=True,
-        box_type_3d='LiDAR'),
-    test=dict(
-        type=dataset_type,
-        data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_test.pkl',
-        pipeline=test_pipeline,
-        classes=class_names,
-        modality=input_modality,
-        test_mode=True,
-        box_type_3d='LiDAR'))
-# For nuScenes dataset, we usually evaluate the model at the end of training.
-# Since the models are trained by 24 epochs by default, we set evaluation
-# interval to be 24. Please change the interval accordingly if you do not
-# use a default schedule.
-# optimizer
-# This schedule is mainly used by models on nuScenes dataset
-optimizer = dict(type='AdamW', lr=1e-4, weight_decay=0.01)
-# max_norm=10 is better for SECOND
-optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
-lr_config = dict(
-    policy='cyclic',
-    target_ratio=(10, 1e-4),
-    cyclic_times=1,
-    step_ratio_up=0.4,
-)
-momentum_config = dict(
-    policy='cyclic',
-    target_ratio=(0.85 / 0.95, 1),
-    cyclic_times=1,
-    step_ratio_up=0.4,
-)
+    val=dict(pipeline=test_pipeline, classes=class_names),
+    test=dict(pipeline=test_pipeline, classes=class_names))
 
-# runtime settings
-total_epochs = 20
-evaluation = dict(interval=20)
+evaluation = dict(interval=1)

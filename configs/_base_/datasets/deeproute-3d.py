@@ -2,9 +2,7 @@
 # cloud range accordingly
 point_cloud_range = [-80, -80, -5, 80, 80, 3]
 # For deeproute we usually do 5-class detection
-class_names = [
-    'smallMot', 'bigMot', 'pedestrian', 'nonMot', 'TrafficCone'
-]
+class_names = []
 dataset_type = 'DeeprouteDataset'
 data_root = 'data/deeproute/'
 # Input modality for nuScenes dataset, this is consistent with the submission
@@ -72,8 +70,8 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=4,
+    samples_per_gpu=4,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         data_root=data_root,
@@ -88,7 +86,7 @@ data = dict(
     val=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'deeproute_infos_val.pkl',
+        ann_file=data_root + 'deeproute_infos_test.pkl',
         pipeline=test_pipeline,
         classes=class_names,
         modality=input_modality,

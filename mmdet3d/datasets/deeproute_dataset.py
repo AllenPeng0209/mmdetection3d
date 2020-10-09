@@ -395,7 +395,7 @@ class DeeprouteDataset(Custom3DDataset):
             #result_files, tmp_dir = self.format_results(results, pklfile_prefix)
             # load gt_data and tranform deeproute data to kitti format
             import pickle
-            
+            '''
             with open('gt20.pickle','rb') as f:
                 gt_annos=pickle.load(f)
             with open('dt.pickle', 'rb') as d:
@@ -405,8 +405,8 @@ class DeeprouteDataset(Custom3DDataset):
             dt_annos = results
             gt_annos = self.deeproute2kitti_gt_format(gt_annos)
             dt_annos = self.deeproute2kitti_dt_format(dt_annos)
-            '''
-            embed()
+           
+            
             ap_result_str, ap_dict = deeproute2kitti_eval(gt_annos, dt_annos, tuple(set(self.CLASSES_EVAL)), out_dir)    
             print_log('\n' + ap_result_str, logger=logger)
             return ap_dict
