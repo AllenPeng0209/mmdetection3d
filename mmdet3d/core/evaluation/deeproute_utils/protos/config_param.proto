@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+package deeproute.common;
+message Info {
+    optional double x = 1;
+    optional double y = 2;
+}

@@ -1,0 +1,16 @@
+
+syntax = "proto2";
+
+package deeproute.common;
+
+// Projection method: Transverse Mercator (TM). Assumes WGS-84 ellipsoid.
+message MapProjection {
+  // Coordinates of map origin, a point close to the center of map.
+  optional double longitude_deg = 1;
+  optional double latitude_deg = 2;
+
+  // A scale factor that minimizes projection distortion over the map. An empirical choice is
+  //        k0 = 1 - (w / 30000)^2,
+  // where w is width of the map (kilometers from west to east).
+  optional double scale_factor = 3 [default = 1.0];
+}

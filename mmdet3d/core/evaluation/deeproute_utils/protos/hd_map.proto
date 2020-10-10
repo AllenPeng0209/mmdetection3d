@@ -1,0 +1,192 @@
+syntax = "proto2";
+
+package deeproute.common;
+
+import "geometry.proto";
+import "map_projection.proto";
+
+// All id's should be universally unique.
+
+message LaneBoundary {
+  optional uint64 id = 1;
+  optional Polyline boundary = 2;  // Includes height information. Direction does not matter.
+
+  // If it is OK to cross the boundary.
+  enum Crossable {
+    PHYSICALLY_NOT = 0;
+    LEGALLY_NOT = 1;
+    RIGHT_TO_LEFT = 2;
+    LEFT_TO_RIGHT = 3;
+    BOTH = 4;
+  }
+  optional Crossable crossable = 3;
+}
+
+message Lane {
+  optional uint64 id = 1;
+
+  enum Type {
+    UNKNOWN = 0;
+    HIGHWAY = 1;  // Controlled access. Expects no pedestrians or bicycles.
+    STREET = 2;  // No access control. Expects pedestrians and bicycles.
+    BIDIRECTIONAL = 3;  // Continuous two-way left-turn lane.
+    SHOULDER = 4;  // Emergency stopping lane
+    BIKING = 5;
+    SIDEWALK = 6;
+    RESTRICTED = 7;
+    PARKING = 8;
+    ROADWORK = 9;
+    OFFRAMP = 10;
+    ONRAMP = 11;
+  };
+  optional Type type = 2;
+
+  enum Turn {
+    INVALID = 0;
+    STRAIGHT = 1;
+    LEFT = 2;
+    RIGHT = 4;
+    U_TURN_LEFT = 8;
+    U_TURN_RIGHT = 16;
+  }
+  // turn is a bitset, i.e., a left- and U-turn lane should have value
+  //    turn = LEFT | U_TURN_LEFT = 10.
+  optional int32 turn = 3;
+
+  // Reference trajectory of N points, not necessarily the geometric centerline.
+  // Direction of centerline is the direction of driving (except BIDIRECTIONAL lanes).
+  optional Polyline centerline = 4;  // Includes height information.
+
+  // Accumulated distance at each point. The first one is always 0.
+  repeated float centerline_s = 5 [packed = true];  // In m.
+
+  optional uint64 left_boundary_id = 6;
+  optional uint64 right_boundary_id = 7;
+
+  enum BoundaryDirection {
+    SAME = 0;
+    LEFT_REVERSE = 1;
+    RIGHT_REVERSE = 2;
+    BOTH_REVERSE = 3;
+  }
+  optional BoundaryDirection boundary_direction = 8;
+
+  repeated uint64 predecessor_id = 9 [packed = true];
+  repeated uint64 successor_id = 10 [packed = true];
+
+  // Neighbor lanes.
+  optional uint64 left_forward_lane_id = 11;
+  optional uint64 right_forward_lane_id = 12;
+  optional uint64 left_reverse_lane_id = 13;
+  optional uint64 right_reverse_lane_id = 14;
+
+  message Overlap {
+    optional uint64 id = 1;
+
+    enum Type {
+      UNKNOWN = 0;
+      CLEAR_ZONE = 1;
+      CROSS_WALK = 2;
+      JUNCTION = 3;
+      LANE = 4;
+      STOP_LINE = 5;
+    }
+    optional Type type = 2;
+
+    optional float s_begin = 3;
+    optional float s_end = 4;
+  }
+
+  repeated Overlap overlaps = 15;
+
+  optional float speed_limit = 16 [default = 11.1111111];  // In m/s. Default 40 km/h (25 mph).
+}
+
+message LaneSegment {
+  optional uint64 id = 1;
+  optional float s_begin = 2;
+  optional float s_end = 3;
+}
+
+message ClearZone {
+  optional uint64 id = 1;
+  optional Polygon polygon = 2;
+}
+
+message CrossWalk {
+  optional uint64 id = 1;
+  optional Polygon polygon = 2;
+}
+
+message Junction {
+  optional uint64 id = 1;
+  optional Polygon polygon = 2;
+  repeated uint64 lane_id = 3 [packed = true];
+  repeated uint64 crosswalk_id = 4 [packed = true];
+  repeated uint64 stopline_id = 5 [packed = true];
+}
+
+message StopLine {
+  optional uint64 id = 1;
+
+  optional Polyline stop_line = 2;
+
+  // A StopLine corresponds to one of the followings:
+  optional uint64 stop_sign_id = 3;
+
+  optional uint64 yield_sign_id = 4;
+
+  repeated uint64 traffic_light_id = 5 [packed = true];
+}
+
+message StopSign {
+  optional uint64 id = 1;
+
+  optional Vector3d location = 2;
+}
+
+message TrafficLight {
+  optional uint64 id = 1;
+  optional Vector3f location = 2;  
+
+  enum Light {
+    INVALID = 0;
+
+    // Colors
+    RED = 1;
+    YELLOW = 2;
+    GREEN = 4;
+    WHITE = 8;
+
+    // Shapes
+    CIRCLE = 16;
+    ARROW_FORWARD = 32;
+    ARROW_LEFT = 64;
+    ARROW_RIGHT = 128;
+    ARROW_U_TURN_LEFT = 256;
+    ARROW_U_TURN_RIGHT = 512;
+    PEDESTRIAN = 1024;
+  }
+  repeated int32 lights = 3 [packed = true];
+  optional float hight = 4 [default = 1.0668];
+  optional float width = 5 [default = 0.3429];
+}
+
+message YieldSign {
+  optional uint64 id = 1;
+
+  optional Vector3d location = 2;
+}
+
+message RoadMap {
+  optional MapProjection projection = 1;
+  repeated Lane lanes = 2;
+  repeated LaneBoundary lane_boundaries = 3;
+  repeated ClearZone clear_zones = 4;
+  repeated CrossWalk cross_walks = 5;
+  repeated Junction junctions = 6;
+  repeated StopLine stop_lines = 7;
+  repeated StopSign stop_signs = 8;
+  repeated TrafficLight traffic_lights = 9;
+  repeated YieldSign yield_signs = 10;
+}

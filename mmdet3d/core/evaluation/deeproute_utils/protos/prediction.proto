@@ -1,0 +1,18 @@
+
+syntax = "proto2";
+
+package deeproute.common;
+
+import "geometry.proto";
+
+message Prediction {
+  message Waypoint {
+    optional int32 time_delta = 1;  
+    optional Vector3f position = 2;
+    optional float speed = 3; 
+    optional float heading = 4;
+  }
+
+  repeated Waypoint trajectory = 1;
+  optional float probability = 2;
+}

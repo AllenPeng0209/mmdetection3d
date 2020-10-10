@@ -1,0 +1,31 @@
+// Copyright 2019 DeepRoute.ai. All Rights Reserved.
+
+syntax = "proto2";
+
+package deeproute.common;
+
+import "geometry.proto";
+
+message Imu {
+  // Message publishing time, in microseconds.
+  optional sfixed64 time_pub = 1;
+
+  // Measure time from canbus, in microseconds.
+  optional sfixed64 time_meas = 2;
+
+  // GPS time of the measurements, in microseconds.
+  optional sfixed64 time_gps = 3;
+
+  // When duration is non-zero, the gyroscope and accelerometer measurements
+  // are averaged for the period from (time_meas - duration) to time_meas.
+  // Usually, duration = 1 / sampling_frequency.
+  // When duration is 0, the measurements are instantaneous at time_meas.
+  optional uint32 duration = 4;  // in microseconds
+
+  // Vehicle reference point (VRP) is at center of rear axle.
+  optional Vector3f angular_velocity_flu = 5; // in rad/s
+
+  optional Vector3f acceleration_flu = 6;  // in m/s^2
+
+  optional bool healthy = 7;
+}

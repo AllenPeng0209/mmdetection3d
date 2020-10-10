@@ -1,0 +1,59 @@
+// Copyright 2019 DeepRoute.ai. All Rights Reserved.
+
+syntax = "proto2";
+
+package deeproute.common;
+
+// Vehicle reference point (VRP) is at center of rear axle.
+
+message Gnss {
+  // Message publishing time, in microseconds.
+  optional sfixed64 time_pub = 1;
+
+  // Measure time from canbus, in microseconds.
+  optional sfixed64 time_meas = 2;
+
+  // GPS time of the measurements, in microseconds.
+  optional sfixed64 time_gps = 3;
+
+  // Position of antenna phase center.
+  optional double longitude_deg = 4;
+  optional double latitude_deg = 5;
+  optional float height = 6;  // meters above the WGS-84 ellipsoid
+
+  // Standard deviation is in meters.
+  optional float east_std = 7;
+  optional float north_std = 8;
+  optional float up_std = 9;
+
+  optional float differential_age = 10;  // in seconds
+  optional float solution_age = 11;  // in seconds
+
+  optional uint32 num_sats_tracked = 12;
+  optional uint32 num_sats_in_solution = 13;
+
+  optional bool solution_computed = 14;
+
+  enum Type {
+    TYPE_INVALID = 0;
+    
+    // Propagated by a Kalman filter without new observations.
+    TYPE_PROPAGATED = 1;
+    
+    // Standard Positioning Service (SPS) without any correction.
+    TYPE_SPS = 2;
+    
+    // Pseudorange differential solution, including WAAS/SBAS solution.
+    TYPE_PSRDIFF = 3;
+    
+    // Precise Point Positioning (PPP) solution.
+    TYPE_PPP = 4;
+    
+    // Real Time Kinematic (RTK) float solution.
+    TYPE_RTK_FLOAT = 5;
+    
+    // RTK integer solution.
+    TYPE_RTK_INTEGER= 6;
+  }
+  optional Type type = 15;
+}

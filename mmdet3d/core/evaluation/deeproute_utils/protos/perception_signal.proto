@@ -1,0 +1,38 @@
+// Copyright 2019 DeepRoute.ai. All Rights Reserved.
+syntax = "proto2";
+
+package  deeproute.common;
+
+message PerceptionSignal {
+  optional uint64 id = 1;  
+
+  enum Color {
+    OFF = 0; 
+    RED = 1;
+    YELLOW = 2;
+    GREEN = 3;
+    WHITE = 4;
+  };
+  repeated Color colors = 2 [packed = true];
+  optional bool is_flashing = 3;
+  optional float confidence = 4 [default = 1.0];
+  optional int64 tracking_time = 5;  
+}
+
+message PerceptionSignals {
+  optional sfixed64 time_meas = 1;  
+  repeated PerceptionSignal lights = 2;
+}
+
+message PerceptionSignalsRequest {
+  optional int32 request_id = 1;
+  repeated uint64 signal_ids = 2 [packed = true];
+}
+
+message PerceptionSignalsResponse {
+  optional int32 request_id = 1;
+  optional sfixed64 time_meas = 2;  
+  optional PerceptionSignal.Color color = 3;
+  optional float confidence = 4 [default = 1.0];
+  optional int64 tracking_time = 5; 
+}

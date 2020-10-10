@@ -1,0 +1,104 @@
+syntax = "proto2";
+package deeproute.common;
+
+import "geometry.proto";
+import "stream.proto";
+
+enum Type {
+  UNSPECIFIED = 0;
+
+  // Velodyne
+  HDL_64_S2 = 1;
+  HDL_64_S3 = 2;
+  HDL_32 = 3;
+  VLP_16 = 4;  // Puck, Puck Lite, etc
+  VLP_16_HR = 5;  // Puck Hi-Res
+  VLP_32 = 6;
+
+  // Hesai
+  PANDAR_40 = 11;
+  PANDAR_40_AC = 12;
+  PANDAR_64 = 13;
+
+  //R-Fans
+  RFANS_16 = 16;
+  RFANS_16_GPS = 17;
+  RFANS_32 = 18;
+
+  // Robosense
+  RS_16 = 21;
+
+  //FPGA
+  FPGA = 22;
+}
+
+
+message Intrinsic {
+  optional bool enabled = 1 [default = true];
+  optional float azimuth_offset = 3[default = 0.0];
+  optional float vert = 4[default = 0.0];   // in degree
+  optional float vert_offset = 5[default = 0.0];
+  optional int64 laser_time_offset = 6;  //in us
+  optional uint32 laser_index = 9;
+}
+
+message CacheIntrinsic{
+  optional float cos_rot = 1;
+  optional float sin_rot = 2;
+  optional float cos_vert = 3;
+  optional float sin_vert = 4;
+  optional float final_azimuth_offset = 5;
+}
+
+message ModelSpec {
+
+  required Type  type = 1;
+  required uint32 laser_size = 2;
+
+  optional float min_distance = 3;
+  optional float max_distance = 4;
+
+  optional uint32 laser_period = 5;  //in nanosecond
+  optional uint32 firing_period = 6; //in nanosecond
+  optional uint32 data_packet_period = 7; //in nanosecond
+
+  optional uint32 data_packet_size = 8;  //in bytes
+  optional uint32 position_packet_size = 9;
+
+  optional uint32 blocks_size = 10;
+
+  repeated Intrinsic default_intrinsics = 11;
+}
+
+message Lidar {
+  required bytes name = 1;
+  required Type  type= 2;
+  repeated Intrinsic intrinsics = 3;
+  optional ModelSpec spec = 4;
+  // For VLP-16 only!!!
+  // If background_distance > max_distance, a point with distance > max_distance will be treated as
+  // a point on background, with distance = background_distance.
+  //optional float background_distance = 7;
+
+  optional Transformation3f sensing_to_lidar = 5;
+  optional Stream stream = 6;
+  optional double rpm = 7 [default = 600.0];
+
+  optional float min_distance = 8;
+  optional float max_distance = 9;
+
+}
+
+message LidarArray {
+  repeated Lidar lidars = 1;
+  optional Transformation3f vehicle_to_sensing = 2;
+
+  message ExclusionBox {
+    optional float x = 1;
+    optional float y = 2;
+    optional float z = 3;
+    optional float z_neg = 4 [default = -100.0];
+    optional float z_pos = 5 [default = 100.0];
+  }
+  optional ExclusionBox exclusion_box = 4;
+}

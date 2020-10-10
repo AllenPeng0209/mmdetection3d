@@ -1,0 +1,32 @@
+// Copyright 2019 DeepRoute.ai. All Rights Reserved.
+syntax = "proto2";
+
+package  deeproute.common;
+
+import "geometry.proto";
+
+message ConfigCamera {
+  optional bytes name = 1;
+  optional bytes serial_number = 2;
+  optional int32 image_width = 3 [default = 1920];
+  optional int32 image_height = 4 [default = 1200];
+  optional float frame_rate = 5;  
+  optional Transformation3f sensing_to_camera = 6;
+  optional float fx = 7;
+  optional float fy = 8;
+  optional float ox = 9;
+  optional float oy = 10;
+  repeated float radial_distortion = 11;
+  optional int32 exposure_time_min = 12 [default = 50]; 
+  optional int32 exposure_time_max = 13 [default = 20000];
+  optional bool reverse_x = 14 [default = false];
+  optional bool reverse_y = 15 [default = false];
+  optional int32 image_height_offset = 16 [default = 0]; 
+  optional bytes image_encoding = 17 [default = "bayer_rggb8"];
+}
+
+message ConfigCameras {
+  repeated ConfigCamera cameras = 1;
+  optional Transformation3f vehicle_to_sensing = 2;
+  optional bytes image_directory = 3;
+}

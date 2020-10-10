@@ -1,0 +1,51 @@
+
+syntax = "proto2";
+
+package deeproute.common;
+
+import "geometry.proto";
+import "prediction.proto";
+
+message PerceptionObject {
+  optional int32 id = 1; 
+
+  optional Vector3f position = 2; 
+  optional Vector3f velocity = 3;
+
+  optional float heading = 4;
+  optional Vector3f bounding_box = 5;
+  optional Polygon polygon = 6;
+
+  optional int64 tracking_time = 7;
+
+  enum Type {
+    UNKNOWN = 0;
+    UNKNOWN_STATIC = 1;
+    UNKNOWN_DYNAMIC = 2;
+    PEDESTRIAN = 3;
+    BIKE = 4;
+    CAR = 5;
+    TRUCK = 6;
+  };
+  optional Type type = 8;
+
+  repeated Prediction prediction = 9;
+
+  enum Source {
+    RAVEN = 0;
+    ZEALOT = 1;
+  };
+
+  optional Source source = 10;
+  optional int32 point_cloud_size = 11;
+  repeated uint32 cluster_index = 12;
+}
+
+message PerceptionObjects {
+  optional sfixed64 time_meas = 1;
+  repeated PerceptionObject objects = 2;
+}
+
+message PerceptionObjectsRequest {
+  optional Polygon polygon = 1; 
+}

@@ -1,0 +1,57 @@
+// Copyright 2019 DeepRoute.ai. All Rights Reserved.
+
+syntax = "proto2";
+
+package deeproute.common;
+
+import "geometry.proto";
+
+message Pose {
+  // Message publishing time, in microseconds.
+  optional sfixed64 time_pub = 1;
+
+  // Measure time from canbus, in microseconds.
+  optional sfixed64 time_meas = 2;
+
+  // GPS time of the measurements, in microseconds.
+  optional sfixed64 time_gps = 3;
+
+  // Vehicle reference point (VRP) is at center of rear axle.
+  // East/north/up with respect to the map origin.
+  // Horizontal offsets x and y are 0 if VRP is right at the map origin.
+  // Height z is with respect to WGS-84 ellipsoid.
+  optional Vector3f position = 4;  // in m
+
+  // Euler angles (intrinsic sequence z-y-x).
+  // Yaw is 0 when the car points to east.
+  // Yaw is pi/2 when the car points to north.
+  optional Vector3f roll_pitch_yaw = 5;  // in rad
+
+  optional Vector3f velocity_enu = 6;  // in m/s
+
+  optional Vector3f velocity_flu = 7;  // in m/s
+
+  optional Vector3f angular_velocity_flu = 8;  // in rad/s
+
+  optional Vector3f acceleration_flu = 9;  // in m/s^2
+
+  // Standard deviation estimates.
+  optional Vector3f position_std = 10;  // in m
+
+  optional Vector3f roll_pitch_yaw_std = 11;  // in rad
+
+  optional Vector3f velocity_enu_std = 12;  // in m/s
+
+  enum Type {
+    // Invalid solution. Do NOT use.
+    TYPE_INVALID = 0;
+
+    // High-variance solution, in which the covariance matrix may be incorrect.
+    // Use with caution.
+    TYPE_CONVERGING = 1;
+
+    // Fully converged solution. Safe to use.
+    TYPE_GOOD = 2;
+  }
+  optional Type type = 13;
+}

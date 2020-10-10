@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+message PredictionEvalPathConfig{
+    Prediction_Eval_Path_Reader prediction_eval_path_reader = 1;
+}
+
+message Prediction_Eval_Path_Reader{
+    string gt_path = 1;
+    string pre_path = 2;
+    string pcd_path = 3;
+    string map_path = 4;
+    string trajectory_file = 5;
+    string velocity_file = 6;
+    string accelerate_file = 7;
+    string turn_file = 8;
+    string cut_in_file = 9;
+    string on_lane_file = 10;
+    string gt_config_path = 11;
+    string eval_path = 12;
+    string config_path = 13;
+    string save_path = 14;
+    bool has_priority = 15;
+    bool save_img = 16;
+    uint32 show_time = 17;
+    float show_error = 18;
+    uint32 show_mode = 19;
+    uint32 pool_num = 20;
+}

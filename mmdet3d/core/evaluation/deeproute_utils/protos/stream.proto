@@ -1,0 +1,47 @@
+syntax = "proto2";
+
+package deeproute.common;
+
+message Stream {
+  message Serial {
+    optional bytes device = 1;  // Usually "/dev/ttyUSBx".
+
+    // Supported baud rates: 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600.
+    optional int32 baud_rate = 2 [default = 9600];
+
+    // It is recommended that timeout >= 0.1 second. Zero here means non-blocking read/write.
+    optional uint32 timeout_usec = 3 [default = 100000];
+  }
+
+  message Udp {
+    optional bytes address = 1;  // Local address. Usually "192.168.xx.xx".
+    optional uint32 port = 2;
+    optional uint32 timeout_usec = 3 [default = 0];  // 0 means blocking read/write.
+  }
+
+  message Tcp {
+    optional bytes address = 1;  // Remote address.
+    optional uint32 port = 2;
+    optional uint32 timeout_usec = 3 [default = 0];  // 0 means blocking read/write.
+  }
+
+  message Ntrip {
+    optional bytes address = 1;  // Remote address.
+    optional uint32 port = 2;
+    optional uint32 timeout_usec = 3 [default = 0];  // 0 means blocking read/write.
+    optional bytes mountpoint = 4;  // Something like "SLAC".
+    optional bytes credential = 5;  // Usually "username:password".
+  }
+
+  message Pcap {
+    optional bytes filename = 1;
+  }
+
+  oneof type {
+    Serial serial = 1;
+    Udp udp = 2;
+    Tcp tcp = 3;
+    Ntrip ntrip = 4;
+    Pcap pcap = 5;
+  }
+}

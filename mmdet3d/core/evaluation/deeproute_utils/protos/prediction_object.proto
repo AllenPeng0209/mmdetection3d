@@ -1,0 +1,36 @@
+syntax = "proto2";
+
+package deeproute.common;
+import "geometry.proto";
+import "perception_object.proto";
+
+message PathPoint {
+    optional double x = 1;
+    optional double y = 2;
+    optional double v = 3;
+    optional double theta = 4;
+}
+message TrajectoryPoint {
+    optional double x = 1;
+    optional double y = 2;
+    optional double v = 3;
+    optional double theta = 4;
+    optional double acc = 5;
+    optional double time_offset = 6;
+}
+
+message Trajectory {
+    optional double prob = 1;
+    repeated TrajectoryPoint trajectory_points = 2;
+}
+
+message PredictionObject {
+   optional uint32 type = 1;
+   optional PerceptionObject perception_object = 2;
+   repeated Trajectory trajectories = 3;
+}
+
+message PredictionObjects {
+   optional uint64 timestamp = 1;
+   repeated PredictionObject prediction_objects = 2;
+}

@@ -1,0 +1,67 @@
+ 
+ 
+
+syntax = "proto2";
+
+package deeproute.common;
+
+import "geometry.proto";
+
+message CarState {
+  optional sfixed64 time_meas = 1;  // in us
+
+  // Position of the vehicle in map frame in m.
+  optional Vector3f position = 2;
+
+  // Velocity of the vehicle in map frame in m/s.
+  optional Vector3f velocity_enu = 3;
+
+  // Velocity of the vehicle in vehicle frame in m/s.
+  optional Vector3f velocity_flu = 4;
+
+  // Euler angles of roll, pitch, yaw in rad (intrinsic sequence z-y-x).
+  // Yaw is 0 when the car points to east, pi/2 when the car points to north.
+  optional Vector3f roll_pitch_yaw = 5;
+
+  optional Vector3f angular_velocity_flu = 6;  // in rad/s
+
+  optional Vector3f acceleration_flu = 7;  // in m/s^2
+
+  optional float front_wheel_angle = 8;  // in rad
+
+  optional float speed = 9;  // Vehicle speed from CAN bus, in m/s.
+
+  //  turn signal status
+  enum TurnSignal {
+    NONE_TURN = 0;
+    LEFT = 1;
+    RIGHT = 2;
+  }
+  optional TurnSignal turn_signal = 10;
+
+  // warning blinker status
+  optional bool warning_blinker_on = 11;
+
+  enum GearStatus {
+    INVALID = 0;
+    PARK = 1;
+    REVERSE = 2;
+    NEUTRAL = 3;
+    DRIVE = 4;
+    LOW = 5;
+    UNSPECIFIED = 6;
+  }
+  optional GearStatus gear = 12;
+
+  enum DrivingMode {
+    MANUAL = 0;
+    LONGITUDINAL_AUTO = 1;
+    LATERAL_AUTO = 2;
+    AUTO = 3;
+  }
+  optional DrivingMode driving_mode = 13;
+
+  optional float longitudinal = 14; // longitudinal command in [-1, 1]
+
+  optional float acc_over_ground = 15;
+}

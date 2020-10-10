@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+message DeeproutePredictionEvalConfig{
+    Deeproute_Eval_Input_Reader deeproute_eval_input_reader = 1;
+}
+
+
+message Deeproute_Eval_Input_Reader {
+    repeated string interest_labels = 1;
+    repeated float weight = 2;
+    repeated float overlap_thresh = 3;
+    uint32 frequency = 4;
+    uint32 eval_frequency = 5;
+    uint32 predict_time = 6;
+    bool cal_iou_bev = 7;
+    float velocity_accpet_error = 8;
+    float stop_thresh = 9;
+    float acclerate_thresh = 10;
+    float turn_thresh = 11;
+    repeated uint32 filter_points_number = 12;
+    uint32 num_modal = 13;
+    Sampler1 name_to_label = 14;
+}
+
+message Sampler1{
+    repeated Group1 sample_groups = 1;
+}
+
+message Group1{
+    map<string, uint32> name_to_num = 1;
+}
