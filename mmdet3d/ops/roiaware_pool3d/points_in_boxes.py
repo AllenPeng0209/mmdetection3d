@@ -1,7 +1,7 @@
 import torch
 
 from . import roiaware_pool3d_ext
-
+from IPython import embed
 
 def points_in_boxes_gpu(points, boxes):
     """Find points that are in boxes (CUDA)
@@ -16,7 +16,11 @@ def points_in_boxes_gpu(points, boxes):
         box_idxs_of_pts (torch.Tensor): (B, M), default background = -1
     """
     assert boxes.shape[0] == points.shape[0]
-    assert boxes.shape[2] == 7
+     
+    if boxes.shape[2] != 7:
+        boxes = boxes[:,:,:7]
+      
+
     batch_size, num_points, _ = points.shape
 
     box_idxs_of_pts = points.new_zeros((batch_size, num_points),

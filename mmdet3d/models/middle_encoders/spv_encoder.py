@@ -5,9 +5,24 @@ from mmdet3d.ops import SparseBasicBlock, make_sparse_convmodule
 from mmdet3d.ops import spconv as spconv
 from ..registry import MIDDLE_ENCODERS
 
+import time
+from collections import OrderedDict, deque
+
+import torch
+import torch.nn as nn
+
+import torchsparse
+import torchsparse.nn as spnn
+import torchsparse.nn.functional as spf
+from torchsparse.sparse_tensor import SparseTensor
+from torchsparse.point_tensor import PointTensor
+from torchsparse.utils.kernel_region import *
+from torchsparse.utils.helpers import *
+
+
 
 @MIDDLE_ENCODERS.register_module()
-class SparseEncoder(nn.Module):
+class SPVEncoder(nn.Module):
     r"""Sparse encoder for SECOND and Part-A2.
 
     Args:
@@ -105,25 +120,9 @@ class SparseEncoder(nn.Module):
         Returns:
             dict: Backbone features.
         """
-        coors = coors.int()
-         
-        input_sp_tensor = spconv.SparseConvTensor(voxel_features, coors,
-                                                  self.sparse_shape,
-                                                  batch_size)
-        x = self.conv_input(input_sp_tensor)
-        encode_features = []
-        for encoder_layer in self.encoder_layers:
-            x = encoder_layer(x)
-            encode_features.append(x)
-
-        # for detection head
-        # [200, 176, 5] -> [200, 176, 2]
-        out = self.conv_out(encode_features[-1])
-        spatial_features = out.dense()
-       
-        N, C, D, H, W = spatial_features.shape
-        spatial_features = spatial_features.view(N, C * D, H, W)
-        return spatial_features
+        x = SparseTensor(voxel_features, coors) 
+          
+        return x
 
     def make_encoder_layers(self,
                             make_block,

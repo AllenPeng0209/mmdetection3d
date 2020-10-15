@@ -2,7 +2,7 @@ import torch
 from mmcv.cnn import ConvModule
 from mmcv.runner import auto_fp16
 from torch import nn as nn
-
+from IPython import embed
 from mmdet3d.ops import build_sa_module
 from mmdet.models import BACKBONES
 from .base_pointnet import BasePointNet
@@ -155,7 +155,6 @@ class PointNet2SAMSG(BasePointNet):
                 out_sa_xyz.append(sa_xyz[-1])
                 out_sa_features.append(sa_features[-1])
                 out_sa_indices.append(sa_indices[-1])
-
         return dict(
             sa_xyz=out_sa_xyz,
             sa_features=out_sa_features,

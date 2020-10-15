@@ -1,7 +1,7 @@
 from mmcv.cnn import build_conv_layer, build_norm_layer
 from mmcv.runner import load_checkpoint
 from torch import nn as nn
-
+from IPython import embed
 from mmdet.models import BACKBONES
 
 
@@ -81,6 +81,7 @@ class SECOND(nn.Module):
         """
         outs = []
         for i in range(len(self.blocks)):
+            
             x = self.blocks[i](x)
             outs.append(x)
         return tuple(outs)

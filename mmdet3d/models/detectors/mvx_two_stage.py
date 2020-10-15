@@ -6,7 +6,7 @@ from mmcv.runner import force_fp32
 from os import path as osp
 from torch import nn as nn
 from torch.nn import functional as F
-
+from IPython import embed
 from mmdet3d.core import (Box3DMode, bbox3d2result, merge_aug_bboxes_3d,
                           show_result)
 from mmdet3d.ops import Voxelization
@@ -30,6 +30,7 @@ class MVXTwoStageDetector(Base3DDetector):
                  img_neck=None,
                  pts_neck=None,
                  pts_bbox_head=None,
+                 pts_points_head=None,
                  img_roi_head=None,
                  img_rpn_head=None,
                  train_cfg=None,
@@ -58,7 +59,12 @@ class MVXTwoStageDetector(Base3DDetector):
             pts_test_cfg = test_cfg.pts if test_cfg else None
             pts_bbox_head.update(test_cfg=pts_test_cfg)
             self.pts_bbox_head = builder.build_head(pts_bbox_head)
-
+        if pts_points_head:
+            pts_train_cfg = train_cfg.pts if train_cfg else None 
+            pts_points_head.update(train_cfg=pts_train_cfg)
+            pts_test_cfg = test_cfg.pts if test_cfg else None
+            pts_points_head.update(test_cfg=pts_test_cfg)
+            self.pts_points_head = builder.build_head(pts_points_head)
         if img_backbone:
             self.img_backbone = builder.build_backbone(img_backbone)
         if img_neck is not None:
@@ -274,7 +280,7 @@ class MVXTwoStageDetector(Base3DDetector):
             points, img=img, img_metas=img_metas)
         losses = dict()
         if pts_feats:
-            losses_pts = self.forward_pts_train(pts_feats, gt_bboxes_3d,
+            losses_pts = self.forward_pts_train(points,pts_feats, gt_bboxes_3d,
                                                 gt_labels_3d, img_metas,
                                                 gt_bboxes_ignore)
             losses.update(losses_pts)

@@ -4,7 +4,7 @@ from mmcv.cnn import (build_conv_layer, build_norm_layer, build_upsample_layer,
                       constant_init, is_norm, kaiming_init)
 from mmcv.runner import auto_fp16
 from torch import nn as nn
-
+from IPython import embed
 from mmdet.models import NECKS
 
 
