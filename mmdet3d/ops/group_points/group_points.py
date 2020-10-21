@@ -5,7 +5,7 @@ from typing import Tuple
 
 from ..ball_query import ball_query
 from . import group_points_ext
-
+from IPython import embed 
 
 class QueryAndGroup(nn.Module):
     """Query and Group.
@@ -169,6 +169,7 @@ class GroupingOperation(Function):
         Returns:
             Tensor: (B, C, npoint, nsample) Grouped features.
         """
+        
         assert features.is_contiguous()
         assert indices.is_contiguous()
 

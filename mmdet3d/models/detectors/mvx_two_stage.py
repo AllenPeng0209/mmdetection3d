@@ -31,6 +31,7 @@ class MVXTwoStageDetector(Base3DDetector):
                  pts_neck=None,
                  pts_bbox_head=None,
                  pts_points_head=None,
+                 pts_roi_head=None,
                  img_roi_head=None,
                  img_rpn_head=None,
                  train_cfg=None,
@@ -65,6 +66,8 @@ class MVXTwoStageDetector(Base3DDetector):
             pts_test_cfg = test_cfg.pts if test_cfg else None
             pts_points_head.update(test_cfg=pts_test_cfg)
             self.pts_points_head = builder.build_head(pts_points_head)
+        if pts_roi_head:
+            self.pts_roi_head = builder.build_head(pts_roi_head) 
         if img_backbone:
             self.img_backbone = builder.build_backbone(img_backbone)
         if img_neck is not None:

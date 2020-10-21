@@ -143,4 +143,5 @@ data = dict(
     val=dict(pipeline=test_pipeline, classes=class_names),
     test=dict(pipeline=test_pipeline, classes=class_names))
 
-evaluation = dict(interval=20)
+find_unused_parameters = True
+evaluation = dict(interval=1)

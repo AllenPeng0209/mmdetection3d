@@ -231,7 +231,7 @@ class SPVCNN(nn.Module):
         #TODO can design handcraft downscale map to config and pass in here
         voxel_feature_outs = [] 
         batch_size = x.C[:, 0][-1] + 1
-        embed() 
+        '''
         voxel_feature1 =  spconv.SparseConvTensor(x3.F, x3.C, 
                                                  ([5, 200, 176]),batch_size).dense()
         voxel_feature2 =  spconv.SparseConvTensor(x4.F, x4.C,
@@ -244,11 +244,20 @@ class SPVCNN(nn.Module):
         voxel_feature_outs.append(voxel_feature2)
         # voxel_feature for detection head 
         # point_feature for segmentation head 
-        
+        '''
         
         point_xyz=[] 
+        point_feature =[]
+        point_coors = []
         for i in range(batch_size):
-            point_xyz.append(x.F[:, :3][x.C[:, 0]==i])
+            inds = (x.C[:, 0]==i)
+            point_xyz.append(x.F[:, :3][inds])
+            point_feature.append(z3.F[:,:][inds])
+            point_coors.append(z3.C[:,:][inds]) 
+        #point_xyz= torch.stack(point_xyz)
+        #point_feature = torch.stack(point_feature)
         
-        feature_dict = {'voxel_feature':tuple(voxel_feature_outs), 'point_feature': z3,                                      'point_xyz':point_xyz}
+        #point_xyz= x.F[:, :3]
+        feature_dict = {'voxel_feature':tuple(voxel_feature_outs), 'point_feature': z3 ,'point_xyz':point_xyz}
+        
         return feature_dict

@@ -31,12 +31,18 @@ model = dict(
         upsample_cfg=dict(type='deconv', bias=False),
         use_conv_for_no_stride=True),
     pts_points_head = dict(
-        type ='Points3DHead',
+        type='Points3DHead',
+        num_classes=16,
+        bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
+        objectness_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0),
+        center_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0)),
+    pts_roi_head = dict(
+        type ='PointsDetHead',
         num_classes=16,
         bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
         in_channels=256,
         vote_module_cfg=dict(
-            in_channels=256,
+            in_channels=96,
             num_points=256,
             gt_per_seed=1,
             conv_channels=(128, ),
@@ -49,7 +55,7 @@ model = dict(
             num_point=256,
             radii=(4.8, 6.4),
             sample_nums=(16, 32),
-            mlp_channels=((256, 256, 256, 512), (256, 256, 512, 1024)),
+            mlp_channels=((96, 256, 256, 512), (96, 256, 512, 1024)),
             norm_cfg=dict(type='BN2d', eps=1e-3, momentum=0.1),
             use_xyz=True,
             normalize_xyz=False,
@@ -79,9 +85,7 @@ model = dict(
             type='SmoothL1Loss', reduction='sum', loss_weight=1.0),
         corner_loss=dict(
             type='SmoothL1Loss', reduction='sum', loss_weight=1.0),
-        vote_loss=dict(type='SmoothL1Loss', reduction='sum', loss_weight=1.0),
-        aux_cls_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0),  
-        aux_reg_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0)),  
+        vote_loss=dict(type='SmoothL1Loss', reduction='sum', loss_weight=1.0),),  
     
     pts_bbox_head=dict(
         type='CenterHead',
@@ -122,6 +126,11 @@ train_cfg = dict(
         min_radius=2,
         code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]))
 test_cfg = dict(
+    nms_cfg=dict(type='nms', iou_thr=0.1),
+    sample_mod='spec',
+    score_thr=0.0,
+    per_class_proposal=True,
+    max_output_num=100,
     pts=dict(
         post_center_limit_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
         max_per_img=500,

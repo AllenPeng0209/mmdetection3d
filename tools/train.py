@@ -10,7 +10,7 @@ import torch
 from mmcv import Config, DictAction
 from mmcv.runner import init_dist
 from os import path as osp
-
+from IPython import embed
 from mmdet3d import __version__
 from mmdet3d.datasets import build_dataset
 from mmdet3d.models import build_detector
@@ -134,7 +134,7 @@ def main():
         set_random_seed(args.seed, deterministic=args.deterministic)
     cfg.seed = args.seed
     meta['seed'] = args.seed
-
+   
     model = build_detector(
         cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
     logger.info(f'Model:\n{model}')

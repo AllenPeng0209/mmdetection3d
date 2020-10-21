@@ -12,7 +12,7 @@ from mmdet3d.ops import build_sa_module, furthest_point_sample
 from mmdet.core import build_bbox_coder, multi_apply
 from mmdet.models import HEADS
 from mmdet3d.models.dense_heads.base_conv_bbox_head import BaseConvBboxHead
-
+from IPython import embed
 
 @HEADS.register_module()
 class VoteHead(nn.Module):
@@ -77,7 +77,6 @@ class VoteHead(nn.Module):
         self.bbox_coder = build_bbox_coder(bbox_coder)
         self.num_sizes = self.bbox_coder.num_sizes
         self.num_dir_bins = self.bbox_coder.num_dir_bins
-
         self.vote_module = VoteModule(**vote_module_cfg)
         self.vote_aggregation = build_sa_module(vote_aggregation_cfg)
         self.fp16_enabled = False
@@ -141,10 +140,9 @@ class VoteHead(nn.Module):
             dict: Predictions of vote head.
         """
         assert sample_mod in ['vote', 'seed', 'random', 'spec']
-
+        
         seed_points, seed_features, seed_indices = self._extract_input(
             feat_dict)
-
         # 1. generate vote_points from seed_points
         vote_points, vote_features, vote_offset = self.vote_module(
             seed_points, seed_features)
@@ -187,7 +185,6 @@ class VoteHead(nn.Module):
         else:
             raise NotImplementedError(
                 f'Sample mode {sample_mod} is not supported!')
-
         vote_aggregation_ret = self.vote_aggregation(**aggregation_inputs)
         aggregated_points, features, aggregated_indices = vote_aggregation_ret
 

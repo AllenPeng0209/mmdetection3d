@@ -6,7 +6,7 @@ from typing import List
 
 from mmdet3d.ops import GroupAll, Points_Sampler, QueryAndGroup, gather_points
 from .registry import SA_MODULES
-
+from IPython import embed
 
 @SA_MODULES.register_module()
 class PointSAModuleMSG(nn.Module):

@@ -2,18 +2,20 @@ import torch
 from mmcv.ops.nms import batched_nms
 from mmcv.runner import force_fp32
 from torch.nn import functional as F
-
+from IPython import embed
 from mmdet3d.core.bbox.structures import (DepthInstance3DBoxes,
                                           LiDARInstance3DBoxes,
                                           rotation_3d_in_axis)
 from mmdet3d.models.builder import build_loss
 from mmdet.core import multi_apply
 from mmdet.models import HEADS
-from .vote_head import VoteHead
-from IPython import embed
+from torch import nn as nn
+from .vote_head import VoteHead 
+from mmdet3d.ops.group_points import QueryAndGroup 
+from  mmdet3d.core.bbox.structures.lidar_box3d import LiDARInstance3DBoxes
 
 @HEADS.register_module()
-class SSD3DHead(VoteHead):
+class PointsDetHead(VoteHead):
     r"""Bbox head of `3DSSD <https://arxiv.org/abs/2002.10187>`_.
 
     Args:
@@ -57,8 +59,10 @@ class SSD3DHead(VoteHead):
                  dir_res_loss=None,
                  size_res_loss=None,
                  corner_loss=None,
-                 vote_loss=None):
-        super(SSD3DHead, self).__init__(
+                 vote_loss=None,
+                 aux_cls_loss=None,
+                 aux_reg_loss=None):
+        super(PointsDetHead, self).__init__(
             num_classes,
             bbox_coder,
             train_cfg=train_cfg,
@@ -75,10 +79,14 @@ class SSD3DHead(VoteHead):
             size_class_loss=None,
             size_res_loss=size_res_loss,
             semantic_loss=None)
-
+        
         self.corner_loss = build_loss(corner_loss)
         self.vote_loss = build_loss(vote_loss)
         self.num_candidates = vote_module_cfg['num_points']
+        self.front_points_threshold =0.8 
+        self.pos_distance_thr=10.0
+        self.expand_dims_length=0.05
+        self.sample_mod='spec'
 
     def _get_cls_out_channels(self):
         """Return the channel number of classification outputs."""
@@ -103,24 +111,122 @@ class SSD3DHead(VoteHead):
             torch.Tensor: Features of input points.
             torch.Tensor: Indices of input points.
         """
-        seed_points = feat_dict['sa_xyz'][-1]
-        seed_features = feat_dict['sa_features'][-1]
-        seed_indices = feat_dict['sa_indices'][-1]
+        #convert point_cat to batch format B ,Point_num, F
+        '''
+        batch_size =int(feat_dict.C[-1][0].item()+1)
+        point_feature = []  
+        point_coors = []
+        point_indices =[]
+        for i in range(batch_size):
+            inds = (feat_dict.C[:, 0]==i)
+            point_feature.append(feat_dict.F[:,:][inds]) 
+            point_coors.append(feat_dict.C[:,:][inds])
+            point_indices.append(feat_dict.idx_query[16][inds])
+        
+        point_feature = torch.stack(point_feature)
+        point_coors = torch.stack(point_coors)
+        point_indices = torch.stack(point_indices)
+        '''
+        point_feature,point_coors, point_indices  = feat_dict.F, feat_dict.C, feat_dict.idx_query[16]
+        return point_feature,point_coors, point_indices
+     
+    def forward(self, point_xyz, point_preds, feat_dict):
+        
+        points_feature, points_coors ,points_indices = self._extract_input(feat_dict) 
+        points_cls , points_reg = point_preds
+        front_points_inds = points_cls> self.front_points_threshold
+         
+        #shift_points_to_center = point_xyz[0][front_points[:,0]] + points_reg[front_points[:,0]]
+        #sample_indices = point_xyz.new_tensor(torch.randint(0, 512, (batch_size, 512)), dtype=torch.int32)
+        #shift_points_to_center_sample = shift_points_to_center[sample_indices]
+        batch_size = len(point_xyz)
+        sample_num = 512
+         
+      
+           
+        sample_indices = torch.randint(0, front_points_inds.sum(), (batch_size, sample_num))
 
-        return seed_points, seed_features, seed_indices
+        point_xyz = torch.cat(point_xyz)
+        front_points_sample = point_xyz[front_points_inds[:,0]][sample_indices]
+        front_points_feature =  points_feature[front_points_inds[:,0]][sample_indices].permute(0,2,1)
+        front_points_indices = points_indices[front_points_inds[:,0]][sample_indices]
+        
 
+        #make it to N, W, H
+        vote_points, vote_features, vote_offset = self.vote_module( front_points_sample,front_points_feature) 
+        
+        results = dict(
+            points_cls = points_cls,
+            points_reg = points_reg,
+            seed_points=front_points_sample,
+            seed_indices=front_points_indices,
+            vote_points=vote_points,
+            vote_features=vote_features,
+            vote_offset=vote_offset)
+        sample_mod = self.sample_mod
+        # 2. aggregate vote_points
+        if sample_mod == 'vote':
+            # use fps in vote_aggregation
+            aggregation_inputs = dict(
+                points_xyz=vote_points, features=vote_features)
+        elif sample_mod == 'seed':
+            # FPS on seed and choose the votes corresponding to the seeds
+            sample_indices = furthest_point_sample(seed_points,
+                                                   self.num_proposal)
+            aggregation_inputs = dict(
+                points_xyz=vote_points,
+                features=vote_features,
+                indices=sample_indices)
+        elif sample_mod == 'random':
+            # Random sampling from the votes
+            batch_size, num_seed = seed_points.shape[:2]
+            sample_indices = seed_points.new_tensor(
+                torch.randint(0, num_seed, (batch_size, self.num_proposal)),
+                dtype=torch.int32)
+            aggregation_inputs = dict(
+                points_xyz=vote_points,
+                features=vote_features,
+                indices=sample_indices)
+        elif sample_mod == 'spec':
+            # Specify the new center in vote_aggregation
+            aggregation_inputs = dict(
+                points_xyz=front_points_sample.contiguous(),
+                features=front_points_feature.contiguous(),
+                target_xyz=vote_points)
+        else:
+            raise NotImplementedError(
+                f'Sample mode {sample_mod} is not supported!')
+        vote_aggregation_ret = self.vote_aggregation(**aggregation_inputs)
+        aggregated_points, features, aggregated_indices = vote_aggregation_ret
+
+        results['aggregated_points'] = aggregated_points
+        results['aggregated_features'] = features
+        results['aggregated_indices'] = aggregated_indices
+
+        # 3. predict bbox and score
+        cls_predictions, reg_predictions = self.conv_pred(features)
+
+        # 4. decode predictions
+        decode_res = self.bbox_coder.split_pred(cls_predictions,
+                                                reg_predictions,
+                                                aggregated_points)
+
+        results.update(decode_res)
+        return results
+         
+        
     @force_fp32(apply_to=('bbox_preds', ))
     def loss(self,
              bbox_preds,
              points,
              gt_bboxes_3d,
              gt_labels_3d,
+             point_xyz,
              pts_semantic_mask=None,
              pts_instance_mask=None,
              img_metas=None,
              gt_bboxes_ignore=None):
         """Compute loss.
-
         Args:
             bbox_preds (dict): Predictions from forward of SSD3DHead.
             points (list[torch.Tensor]): Input points.
@@ -134,7 +240,6 @@ class SSD3DHead(VoteHead):
             img_metas (list[dict]): Contain pcd and img's meta info.
             gt_bboxes_ignore (None | list[torch.Tensor]): Specify
                 which bounding.
-
         Returns:
             dict: Losses of 3DSSD.
         """
@@ -145,7 +250,7 @@ class SSD3DHead(VoteHead):
          dir_res_targets, mask_targets, centerness_targets, corner3d_targets,
          vote_mask, positive_mask, negative_mask, centerness_weights,
          box_loss_weights, heading_res_loss_weight) = targets
-        embed()
+
         # calculate centerness loss
         centerness_loss = self.objectness_loss(
             bbox_preds['obj_scores'].transpose(2, 1),
@@ -188,8 +293,7 @@ class SSD3DHead(VoteHead):
                 dir_class=one_hot_dir_class_targets,
                 size=bbox_preds['size']))
         pred_bbox3d = pred_bbox3d.reshape(-1, pred_bbox3d.shape[-1])
-        embed()
-        pred_bbox3d = img_metas[0]['box_type_3d'](
+        pred_bbox3d = LiDARInstance3DBoxes(
             pred_bbox3d.clone(),
             box_dim=pred_bbox3d.shape[-1],
             with_yaw=self.bbox_coder.with_rot,
@@ -214,8 +318,8 @@ class SSD3DHead(VoteHead):
             size_res_loss=size_loss,
             corner_loss=corner_loss,
             vote_loss=vote_loss)
-
-        return losses
+        return losses 
+        
 
     def get_targets(self,
                     points,
@@ -225,7 +329,6 @@ class SSD3DHead(VoteHead):
                     pts_instance_mask=None,
                     bbox_preds=None):
         """Generate targets of ssd3d head.
-
         Args:
             points (list[torch.Tensor]): Points of each batch.
             gt_bboxes_3d (list[:obj:`BaseInstance3DBoxes`]): Ground truth \
@@ -236,7 +339,6 @@ class SSD3DHead(VoteHead):
             pts_instance_mask (None | list[torch.Tensor]): Point-wise instance
                 label of each batch.
             bbox_preds (torch.Tensor): Bounding box predictions of ssd3d head.
-
         Returns:
             tuple[torch.Tensor]: Targets of ssd3d head.
         """
@@ -256,6 +358,7 @@ class SSD3DHead(VoteHead):
             bbox_preds['aggregated_points'][i]
             for i in range(len(gt_labels_3d))
         ]
+
         seed_points = [
             bbox_preds['seed_points'][i, :self.num_candidates].detach()
             for i in range(len(gt_labels_3d))
@@ -266,7 +369,7 @@ class SSD3DHead(VoteHead):
          vote_mask, positive_mask, negative_mask) = multi_apply(
              self.get_targets_single, points, gt_bboxes_3d, gt_labels_3d,
              pts_semantic_mask, pts_instance_mask, aggregated_points,
-            seed_points)
+             seed_points)
 
         center_targets = torch.stack(center_targets)
         positive_mask = torch.stack(positive_mask)
@@ -303,7 +406,6 @@ class SSD3DHead(VoteHead):
                 centerness_targets, corner3d_targets, vote_mask, positive_mask,
                 negative_mask, centerness_weights, box_loss_weights,
                 heading_res_loss_weight)
-
     def get_targets_single(self,
                            points,
                            gt_bboxes_3d,
@@ -311,9 +413,9 @@ class SSD3DHead(VoteHead):
                            pts_semantic_mask=None,
                            pts_instance_mask=None,
                            aggregated_points=None,
-                           seed_points=None):
+                           seed_points=None,
+                           ):
         """Generate targets of ssd3d head for single batch.
-
         Args:
             points (torch.Tensor): Points of each batch.
             gt_bboxes_3d (:obj:`BaseInstance3DBoxes`): Ground truth \
@@ -326,7 +428,6 @@ class SSD3DHead(VoteHead):
             aggregated_points (torch.Tensor): Aggregated points from
                 candidate points layer.
             seed_points (torch.Tensor): Seed points of candidate points.
-
         Returns:
             tuple[torch.Tensor]: Targets of ssd3d head.
         """
@@ -342,6 +443,7 @@ class SSD3DHead(VoteHead):
 
         points_mask, assignment = self._assign_targets_by_points_inside(
             gt_bboxes_3d, aggregated_points)
+
         center_targets = center_targets[assignment]
         size_res_targets = size_targets[assignment]
         mask_targets = gt_labels_3d[assignment]
@@ -352,7 +454,7 @@ class SSD3DHead(VoteHead):
         top_center_targets = center_targets.clone()
         top_center_targets[:, 2] += size_res_targets[:, 2]
         dist = torch.norm(aggregated_points - top_center_targets, dim=1)
-        dist_mask = dist < self.train_cfg.pos_distance_thr
+        dist_mask = dist < self.pos_distance_thr
         positive_mask = (points_mask.max(1)[0] > 0) * dist_mask
         negative_mask = (points_mask.max(1)[0] == 0)
 
@@ -397,20 +499,21 @@ class SSD3DHead(VoteHead):
 
         # Vote loss targets
         enlarged_gt_bboxes_3d = gt_bboxes_3d.enlarged_box(
-            self.train_cfg.expand_dims_length)
-        enlarged_gt_bboxes_3d.tensor[:, 2] -= self.train_cfg.expand_dims_length
+            self.expand_dims_length)
+        enlarged_gt_bboxes_3d.tensor[:, 2] -= self.expand_dims_length
         vote_mask, vote_assignment = self._assign_targets_by_points_inside(
             enlarged_gt_bboxes_3d, seed_points)
 
         vote_targets = gt_bboxes_3d.gravity_center
         vote_targets = vote_targets[vote_assignment] - seed_points
         vote_mask = vote_mask.max(1)[0] > 0
+
         return (vote_targets, center_targets, size_res_targets,
                 dir_class_targets, dir_res_targets, mask_targets,
                 centerness_targets, corner3d_targets, vote_mask, positive_mask,
-                negative_mask)
-
+                negative_mask)        
     def get_bboxes(self, points, bbox_preds, input_metas, rescale=False):
+       
         """Generate bboxes from sdd3d head predictions.
 
         Args:
@@ -541,4 +644,5 @@ class SSD3DHead(VoteHead):
             assignment = points_mask.argmax(dim=-1)
         else:
             raise NotImplementedError('Unsupported bbox type!')
+
         return points_mask, assignment

@@ -11,12 +11,11 @@ from mmdet.core import multi_apply
 from mmdet.models import HEADS
 from torch import nn as nn
 from .vote_head import VoteHead 
-
-
-
+from mmdet3d.ops.group_points import QueryAndGroup 
+from mmdet.core import build_bbox_coder
 
 @HEADS.register_module()
-class Points3DHead(VoteHead):
+class Points3DHead(nn.Module):
     r"""Bbox head of `3DSSD <https://arxiv.org/abs/2002.10187>`_.
 
     Args:
@@ -48,44 +47,17 @@ class Points3DHead(VoteHead):
                  in_channels=256,
                  train_cfg=None,
                  test_cfg=None,
-                 vote_module_cfg=None,
-                 vote_aggregation_cfg=None,
-                 pred_layer_cfg=None,
-                 conv_cfg=dict(type='Conv1d'),
-                 norm_cfg=dict(type='BN1d'),
-                 act_cfg=dict(type='ReLU'),
                  objectness_loss=None,
                  center_loss=None,
-                 dir_class_loss=None,
-                 dir_res_loss=None,
-                 size_res_loss=None,
+                 gravity_loss=None,
                  corner_loss=None,
-                 vote_loss=None,
-                 aux_cls_loss=None,
-                 aux_reg_loss=None):
-        super(Points3DHead, self).__init__(
-            num_classes,
-            bbox_coder,
-            train_cfg=train_cfg,
-            test_cfg=test_cfg,
-            vote_module_cfg=vote_module_cfg,
-            vote_aggregation_cfg=vote_aggregation_cfg,
-            pred_layer_cfg=pred_layer_cfg,
-            conv_cfg=conv_cfg,
-            norm_cfg=norm_cfg,
-            objectness_loss=objectness_loss,
-            center_loss=center_loss,
-            dir_class_loss=dir_class_loss,
-            dir_res_loss=dir_res_loss,
-            size_class_loss=None,
-            size_res_loss=size_res_loss,
-            semantic_loss=None)
+                 semantic_loss=None,
+                 ):
+        super(Points3DHead, self).__init__()
         
-        self.corner_loss = build_loss(corner_loss)
-        self.vote_loss = build_loss(vote_loss)
-        self.num_candidates = vote_module_cfg['num_points']
-        self.aux_cls_loss = build_loss(aux_cls_loss)
-        self.aux_reg_loss = build_loss(aux_reg_loss)
+        self.bbox_coder = build_bbox_coder(bbox_coder)  
+        self.objectness_loss = build_loss(objectness_loss)
+        self.center_loss = build_loss(center_loss)
         self.point_fc = nn.Linear(96, 64, bias=False)
         self.point_cls = nn.Linear(64, 1, bias=False)
         self.point_reg = nn.Linear(64, 3, bias=False)
@@ -101,7 +73,7 @@ class Points3DHead(VoteHead):
         # heading class+residual (num_dir_bins*2)),
         return 3 + 3 + self.num_dir_bins * 2
 
-    def _extract_input(self, feat_dict):
+    def _extract_input(self,point_xyz, feat_dict):
         """Extract inputs from features dictionary.
 
         Args:
@@ -133,6 +105,7 @@ class Points3DHead(VoteHead):
         pointwise = self.point_fc(feat_dict.F)
         point_cls = self.point_cls(pointwise)
         point_reg = self.point_reg(pointwise)
+        
         return (point_cls, point_reg)
     @force_fp32(apply_to=('bbox_preds', ))
     def loss(self,
@@ -162,7 +135,7 @@ class Points3DHead(VoteHead):
         Returns:
             dict: Losses of 3DSSD.
         """
-        
+         
         (point_cls, point_reg) = point_preds
         targets = self.get_targets(point_xyz, gt_bboxes_3d, gt_labels_3d,
                                    pts_semantic_mask, pts_instance_mask,
@@ -170,14 +143,14 @@ class Points3DHead(VoteHead):
         (points_cls_targets, points_center_targets) = targets
 
         
-        aux_loss_cls = self.aux_cls_loss(point_cls, points_cls_targets)
+        objectness_loss = self.objectness_loss(point_cls, points_cls_targets)
 
-        aux_loss_reg = self.aux_reg_loss(point_reg, points_center_targets)
+        center_loss = self.center_loss(point_reg, points_center_targets)
         
 
         losses = dict(
-            aux_loss_cls=aux_loss_cls,
-            aux_loss_reg=aux_loss_reg)
+            front_point_loss=objectness_loss,
+            center_offset_loss=center_loss)
         
         return losses
 
@@ -231,38 +204,6 @@ class Points3DHead(VoteHead):
         #TODO better to predict each points cls, instead of just front 
         return points_front, center_offset
         
-    def get_bboxes(self, points, bbox_preds, input_metas, rescale=False):
-       
-        """Generate bboxes from sdd3d head predictions.
-
-        Args:
-            points (torch.Tensor): Input points.
-            bbox_preds (dict): Predictions from sdd3d head.
-            input_metas (list[dict]): Point cloud and image's meta info.
-            rescale (bool): Whether to rescale bboxes.
-
-        Returns:
-            list[tuple[torch.Tensor]]: Bounding boxes, scores and labels.
-        """
-        # decode boxes
-        sem_scores = F.sigmoid(bbox_preds['obj_scores']).transpose(1, 2)
-        obj_scores = sem_scores.max(-1)[0]
-        bbox3d = self.bbox_coder.decode(bbox_preds)
-
-        batch_size = bbox3d.shape[0]
-        results = list()
-
-        for b in range(batch_size):
-            bbox_selected, score_selected, labels = self.multiclass_nms_single(
-                obj_scores[b], sem_scores[b], bbox3d[b], points[b, ..., :3],
-                input_metas[b])
-            bbox = input_metas[b]['box_type_3d'](
-                bbox_selected.clone(),
-                box_dim=bbox_selected.shape[-1],
-                with_yaw=self.bbox_coder.with_rot)
-            results.append((bbox, score_selected, labels))
-
-        return results
 
     def multiclass_nms_single(self, obj_scores, sem_scores, bbox, points,
                               input_meta):

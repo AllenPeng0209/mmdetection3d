@@ -18,6 +18,7 @@ class SuperNet(MVXTwoStageDetector):
                  pts_neck=None,
                  pts_bbox_head=None,
                  pts_points_head=None,
+                 pts_roi_head=None, 
                  img_roi_head=None,
                  img_rpn_head=None,
                  train_cfg=None,
@@ -27,7 +28,8 @@ class SuperNet(MVXTwoStageDetector):
               self).__init__(pts_voxel_layer, pts_voxel_encoder,
                              pts_middle_encoder, pts_fusion_layer,
                              img_backbone, pts_backbone, img_neck, pts_neck,
-                             pts_bbox_head,pts_points_head,img_roi_head, img_rpn_head,
+                             pts_bbox_head, pts_points_head,pts_roi_head, 
+                             img_roi_head, img_rpn_head,
                              train_cfg, test_cfg, pretrained)
 
     def extract_pts_feat(self, pts, img_feats, img_metas):
@@ -41,10 +43,10 @@ class SuperNet(MVXTwoStageDetector):
         x = self.pts_middle_encoder(voxel_features, coors, batch_size)
         x = self.pts_backbone(x)
         #TODO waiting for torchsparse lib open bev function , and it can covert back to second
-        
+        ''' 
         if self.with_pts_neck:
             x = self.pts_neck(x)
-        
+        '''
         return x
     def forward_pts_train(self,
                           points,
@@ -54,9 +56,6 @@ class SuperNet(MVXTwoStageDetector):
                           img_metas,
                           gt_bboxes_ignore=None):
         """Forward function for point cloud branch.
-
-
-
         Args:
             pts_feats (list[torch.Tensor]): Features of point cloud branch
             gt_bboxes_3d (list[:obj:`BaseInstance3DBoxes`]): Ground truth
@@ -74,23 +73,29 @@ class SuperNet(MVXTwoStageDetector):
         point_xyz = pts_feats['point_xyz']
         point_preds = self.pts_points_head(pts_feats['point_feature'])
         points_loss_inputs = [point_xyz ,gt_bboxes_3d, gt_labels_3d, point_preds]
-        points_losses = self.pts_points_head.loss(*points_loss_inputs) 
-       
+        points_losses = self.pts_points_head.loss(*points_loss_inputs)
+
+        bboxs_preds = self.pts_roi_head(point_xyz, point_preds, pts_feats['point_feature']) 
+        points_bboxs_loss_inputs = [bboxs_preds, points ,gt_bboxes_3d, gt_labels_3d, point_xyz]
+        points_bboxs_losses = self.pts_roi_head.loss(*points_bboxs_loss_inputs) 
+        '''
         #voxel-base branch
         voxel_preds = self.pts_bbox_head(pts_feats['voxel_feature'])
         voxel_loss_inputs = [gt_bboxes_3d, gt_labels_3d, voxel_preds]
         voxel_losses = self.pts_bbox_head.loss(*voxel_loss_inputs)
-        
+        '''
         losses={}
         losses.update(points_losses)
-        losses.update(voxel_losses)
+        #losses.update(voxel_losses)
+        losses.update(points_bboxs_losses)
         return losses
 
     def simple_test_pts(self, x, img_metas, rescale=False):
         """Test function of point cloud branch."""
-        outs = self.pts_bbox_head(x)
-        bbox_list = self.pts_bbox_head.get_bboxes(
-            outs, img_metas, rescale=rescale)
+        point_preds = self.pts_points_head(x)
+        bboxs_preds = self.pts_roi_head(point_xyz, point_preds, pts_feats['point_feature']) 
+        bbox_list = self.pts_roi_head.get_bboxes(
+            bboxs_preds, img_metas, rescale=rescale)
 
         bbox_results = [
             bbox3d2result(bboxes, scores, labels)
