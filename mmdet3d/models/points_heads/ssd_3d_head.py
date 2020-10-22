@@ -145,7 +145,6 @@ class SSD3DHead(VoteHead):
          dir_res_targets, mask_targets, centerness_targets, corner3d_targets,
          vote_mask, positive_mask, negative_mask, centerness_weights,
          box_loss_weights, heading_res_loss_weight) = targets
-        embed()
         # calculate centerness loss
         centerness_loss = self.objectness_loss(
             bbox_preds['obj_scores'].transpose(2, 1),
@@ -188,7 +187,6 @@ class SSD3DHead(VoteHead):
                 dir_class=one_hot_dir_class_targets,
                 size=bbox_preds['size']))
         pred_bbox3d = pred_bbox3d.reshape(-1, pred_bbox3d.shape[-1])
-        embed()
         pred_bbox3d = img_metas[0]['box_type_3d'](
             pred_bbox3d.clone(),
             box_dim=pred_bbox3d.shape[-1],
@@ -530,6 +528,7 @@ class SSD3DHead(VoteHead):
         num_bbox = bboxes_3d.tensor.shape[0]
         if isinstance(bboxes_3d, LiDARInstance3DBoxes):
             assignment = bboxes_3d.points_in_boxes(points).long()
+            embed()
             points_mask = assignment.new_zeros(
                 [assignment.shape[0], num_bbox + 1])
             assignment[assignment == -1] = num_bbox

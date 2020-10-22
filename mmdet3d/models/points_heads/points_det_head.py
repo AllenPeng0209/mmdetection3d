@@ -140,12 +140,8 @@ class PointsDetHead(VoteHead):
         #sample_indices = point_xyz.new_tensor(torch.randint(0, 512, (batch_size, 512)), dtype=torch.int32)
         #shift_points_to_center_sample = shift_points_to_center[sample_indices]
         batch_size = len(point_xyz)
-        sample_num = 512
-         
-      
-           
+        sample_num = 512  
         sample_indices = torch.randint(0, front_points_inds.sum(), (batch_size, sample_num))
-
         point_xyz = torch.cat(point_xyz)
         front_points_sample = point_xyz[front_points_inds[:,0]][sample_indices]
         front_points_feature =  points_feature[front_points_inds[:,0]][sample_indices].permute(0,2,1)
