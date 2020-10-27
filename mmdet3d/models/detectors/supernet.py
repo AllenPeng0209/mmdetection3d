@@ -90,12 +90,13 @@ class SuperNet(MVXTwoStageDetector):
         losses.update(points_bboxs_losses)
         return losses
 
-    def simple_test_pts(self, x, img_metas, rescale=False):
+    def simple_test_pts(self, pts_feats, img_metas, rescale=False):
         """Test function of point cloud branch."""
-        point_preds = self.pts_points_head(x)
+        point_xyz = pts_feats['point_xyz'] 
+        point_preds = self.pts_points_head(pts_feats['point_feature'])
         bboxs_preds = self.pts_roi_head(point_xyz, point_preds, pts_feats['point_feature']) 
-        bbox_list = self.pts_roi_head.get_bboxes(
-            bboxs_preds, img_metas, rescale=rescale)
+        bbox_list = self.pts_roi_head.get_bboxes(point_xyz ,bboxs_preds
+                                                 , img_metas, rescale=rescale)
 
         bbox_results = [
             bbox3d2result(bboxes, scores, labels)

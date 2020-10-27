@@ -124,7 +124,7 @@ train_cfg = dict(
         gaussian_overlap=0.1,
         max_objs=500,
         min_radius=2,
-        code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]))
+        code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 test_cfg = dict(
     pts=dict(
         nms_cfg=dict(type='nms', iou_thr=0.1),

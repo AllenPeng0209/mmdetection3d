@@ -4,7 +4,7 @@ import pyquaternion
 import tempfile
 from nuscenes.utils.data_classes import Box as NuScenesBox
 from os import path as osp
-
+from IPython import embed
 from mmdet.datasets import DATASETS
 from ..core import show_result
 from ..core.bbox import Box3DMode, LiDARInstance3DBoxes
@@ -125,7 +125,8 @@ class NuScenesDataset(Custom3DDataset):
             box_type_3d=box_type_3d,
             filter_empty_gt=filter_empty_gt,
             test_mode=test_mode)
-
+        if test_mode == True:
+            self.data_infos = self.load_annotations(self.ann_file)[::20]
         self.with_velocity = with_velocity
         self.eval_version = eval_version
         from nuscenes.eval.detection.config import config_factory
@@ -472,6 +473,7 @@ class NuScenesDataset(Custom3DDataset):
         Returns:
             dict[str, float]: Results of each evaluation metric.
         """
+        embed()
         result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
 
         if isinstance(result_files, dict):

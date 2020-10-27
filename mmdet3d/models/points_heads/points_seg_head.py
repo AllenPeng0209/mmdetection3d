@@ -48,7 +48,7 @@ class Points3DHead(nn.Module):
                  train_cfg=None,
                  test_cfg=None,
                  front_point_loss=None,
-                 center_offset_loss=None,
+                 center_loss=None,
                  gravity_loss=None,
                  corner_loss=None,
                  semantic_loss=None,
@@ -57,7 +57,7 @@ class Points3DHead(nn.Module):
         self.num_classes = num_classes
         self.bbox_coder = build_bbox_coder(bbox_coder)  
         self.front_point_loss = build_loss(front_point_loss)
-        self.center_offset_loss = build_loss(center_offset_loss)
+        self.center_loss = build_loss(center_loss)
         self.point_fc = nn.Linear(96, 64, bias=False)
         self.point_front = nn.Linear(64, 1, bias=False)
         self.point_center_offset = nn.Linear(64, 3, bias=False)
@@ -140,11 +140,11 @@ class Points3DHead(nn.Module):
         targets = self.get_targets(point_xyz, gt_bboxes_3d, gt_labels_3d,
                                    pts_semantic_mask, pts_instance_mask,
                                    )
-        (points_front_targets, points_center_offset_targets) = targets
+        (points_front_targets, points_center_targets) = targets
         
-        front_point_loss = self.front_point_loss(point_front, points_front_targets)
+        front_points_loss = self.front_points_loss(point_front, points_front_targets)
 
-        center_offset_loss = self.center_offset_loss(point_center_offset, points_center_offset_targets)
+        center_loss = self.center_offset_loss(point_reg, points_center_targets)
 
         losses = dict(
             front_point_loss=front_point_loss,

@@ -87,7 +87,11 @@ class PointsDetHead(VoteHead):
         self.pos_distance_thr=10.0
         self.expand_dims_length=0.05
         self.sample_mod='spec'
-
+        self.iou_thr=0.1
+        self.score_thr=0.0
+        self.per_class_proposal=True
+        self.max_output_num=100
+        self.nms_cfg =dict(type='nms', iou_thr=0.1)
     def _get_cls_out_channels(self):
         """Return the channel number of classification outputs."""
         # Class numbers (k) + objectness (1)
@@ -528,10 +532,10 @@ class PointsDetHead(VoteHead):
 
         batch_size = bbox3d.shape[0]
         results = list()
-
+       
         for b in range(batch_size):
             bbox_selected, score_selected, labels = self.multiclass_nms_single(
-                obj_scores[b], sem_scores[b], bbox3d[b], points[b, ..., :3],
+                obj_scores[b], sem_scores[b], bbox3d[b], points[b][..., :3],
                 input_metas[b])
             bbox = input_metas[b]['box_type_3d'](
                 bbox_selected.clone(),
@@ -584,20 +588,19 @@ class PointsDetHead(VoteHead):
         bbox_classes = torch.argmax(sem_scores, -1)
         nms_selected = batched_nms(
             minmax_box3d[nonempty_box_mask][:, [0, 1, 3, 4]],
-            obj_scores[nonempty_box_mask], bbox_classes[nonempty_box_mask],
-            self.test_cfg.nms_cfg)[1]
+            obj_scores[nonempty_box_mask], bbox_classes[nonempty_box_mask],                                                   self.nms_cfg)[1]
 
-        if nms_selected.shape[0] > self.test_cfg.max_output_num:
-            nms_selected = nms_selected[:self.test_cfg.max_output_num]
+        if nms_selected.shape[0] > self.max_output_num:
+            nms_selected = nms_selected[:self.max_output_num]
 
         # filter empty boxes and boxes with low score
-        scores_mask = (obj_scores >= self.test_cfg.score_thr)
+        scores_mask = (obj_scores >= self.score_thr)
         nonempty_box_inds = torch.nonzero(nonempty_box_mask).flatten()
         nonempty_mask = torch.zeros_like(bbox_classes).scatter(
             0, nonempty_box_inds[nms_selected], 1)
         selected = (nonempty_mask.bool() & scores_mask.bool())
 
-        if self.test_cfg.per_class_proposal:
+        if self.per_class_proposal:
             bbox_selected, score_selected, labels = [], [], []
             for k in range(sem_scores.shape[-1]):
                 bbox_selected.append(bbox[selected].tensor)
