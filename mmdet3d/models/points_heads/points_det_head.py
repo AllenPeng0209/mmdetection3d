@@ -60,8 +60,9 @@ class PointsDetHead(VoteHead):
                  size_res_loss=None,
                  corner_loss=None,
                  vote_loss=None,
-                 aux_cls_loss=None,
-                 aux_reg_loss=None):
+                 velocity_loss=None,
+                 ):
+        self.extra_reg_dim = 2 if velocity_loss is not None else 0
         super(PointsDetHead, self).__init__(
             num_classes,
             bbox_coder,
@@ -82,6 +83,10 @@ class PointsDetHead(VoteHead):
         
         self.corner_loss = build_loss(corner_loss)
         self.vote_loss = build_loss(vote_loss)
+        if velocity_loss is not None:
+            self.velocity_loss = build_loss(velocity_loss)
+        else:
+            self.velocity_loss = None
         self.num_candidates = vote_module_cfg['num_points']
         self.front_points_threshold =0.8 
         self.pos_distance_thr=10.0
@@ -90,7 +95,7 @@ class PointsDetHead(VoteHead):
         self.iou_thr=0.1
         self.score_thr=0.0
         self.per_class_proposal=True
-        self.max_output_num=100
+        self.max_output_num=30
         self.nms_cfg =dict(type='nms', iou_thr=0.1)
     def _get_cls_out_channels(self):
         """Return the channel number of classification outputs."""
@@ -102,7 +107,7 @@ class PointsDetHead(VoteHead):
         # Bbox classification and regression
         # (center residual (3), size regression (3)
         # heading class+residual (num_dir_bins*2)),
-        return 3 + 3 + self.num_dir_bins * 2
+        return 3 + 3 + self.num_dir_bins * 2 + self.extra_reg_dim  
 
     def _extract_input(self, feat_dict):
         """Extract inputs from features dictionary.
@@ -139,7 +144,6 @@ class PointsDetHead(VoteHead):
         points_feature, points_coors ,points_indices = self._extract_input(feat_dict) 
         points_cls , points_reg = point_preds
         front_points_inds = points_cls> self.front_points_threshold
-         
         #shift_points_to_center = point_xyz[0][front_points[:,0]] + points_reg[front_points[:,0]]
         #sample_indices = point_xyz.new_tensor(torch.randint(0, 512, (batch_size, 512)), dtype=torch.int32)
         #shift_points_to_center_sample = shift_points_to_center[sample_indices]
@@ -151,7 +155,6 @@ class PointsDetHead(VoteHead):
         front_points_feature =  points_feature[front_points_inds[:,0]][sample_indices].permute(0,2,1)
         front_points_indices = points_indices[front_points_inds[:,0]][sample_indices]
         
-
         #make it to N, W, H
         vote_points, vote_features, vote_offset = self.vote_module( front_points_sample,front_points_feature) 
         
@@ -248,7 +251,7 @@ class PointsDetHead(VoteHead):
                                    bbox_preds)
         (vote_targets, center_targets, size_res_targets, dir_class_targets,
          dir_res_targets, mask_targets, centerness_targets, corner3d_targets,
-         vote_mask, positive_mask, negative_mask, centerness_weights,
+         extra_targets,vote_mask, positive_mask, negative_mask, centerness_weights,
          box_loss_weights, heading_res_loss_weight) = targets
 
         # calculate centerness loss
@@ -318,6 +321,14 @@ class PointsDetHead(VoteHead):
             size_res_loss=size_loss,
             corner_loss=corner_loss,
             vote_loss=vote_loss)
+        #TODO find out how to make velocity loss, just hack and not learn
+        if self.velocity_loss is not None:
+            veloc_loss = self.velocity_loss(
+                     bbox_preds['extra_reg'], 
+                     bbox_preds['extra_reg'],
+                     #extra_targets,
+                     weight=box_loss_weights.unsqueeze(-1))
+            losses['veloc_loss'] = veloc_loss
         return losses 
         
 
@@ -365,7 +376,7 @@ class PointsDetHead(VoteHead):
         ]
 
         (vote_targets, center_targets, size_res_targets, dir_class_targets,
-         dir_res_targets, mask_targets, centerness_targets, corner3d_targets,
+         dir_res_targets, mask_targets,extra_targets, centerness_targets, corner3d_targets,
          vote_mask, positive_mask, negative_mask) = multi_apply(
              self.get_targets_single, points, gt_bboxes_3d, gt_labels_3d,
              pts_semantic_mask, pts_instance_mask, aggregated_points,
@@ -403,9 +414,9 @@ class PointsDetHead(VoteHead):
 
         return (vote_targets, center_targets, size_res_targets,
                 dir_class_targets, dir_res_targets, mask_targets,
-                centerness_targets, corner3d_targets, vote_mask, positive_mask,
-                negative_mask, centerness_weights, box_loss_weights,
-                heading_res_loss_weight)
+                centerness_targets, corner3d_targets,extra_targets, 
+                vote_mask, positive_mask,negative_mask, centerness_weights,
+                box_loss_weights, heading_res_loss_weight)
     def get_targets_single(self,
                            points,
                            gt_bboxes_3d,
@@ -439,7 +450,7 @@ class PointsDetHead(VoteHead):
         gt_corner3d = gt_bboxes_3d.corners
 
         (center_targets, size_targets, dir_class_targets,
-         dir_res_targets) = self.bbox_coder.encode(gt_bboxes_3d, gt_labels_3d)
+         dir_res_targets,extra_targets) = self.bbox_coder.encode(gt_bboxes_3d, gt_labels_3d)
 
         points_mask, assignment = self._assign_targets_by_points_inside(
             gt_bboxes_3d, aggregated_points)
@@ -509,7 +520,7 @@ class PointsDetHead(VoteHead):
         vote_mask = vote_mask.max(1)[0] > 0
 
         return (vote_targets, center_targets, size_res_targets,
-                dir_class_targets, dir_res_targets, mask_targets,
+                dir_class_targets, dir_res_targets, mask_targets,extra_targets,
                 centerness_targets, corner3d_targets, vote_mask, positive_mask,
                 negative_mask)        
     def get_bboxes(self, points, bbox_preds, input_metas, rescale=False):

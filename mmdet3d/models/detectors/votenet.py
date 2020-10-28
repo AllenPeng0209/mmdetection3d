@@ -25,6 +25,11 @@ class VoteNet(SingleStage3DDetector):
             test_cfg=test_cfg,
             pretrained=pretrained)
 
+    def _prepare_input(self, points, img_metas):
+        """Prepare network inputs."""
+        points_cat = torch.stack(points)
+        return points_cat, points
+
     def forward_train(self,
                       points,
                       img_metas,
@@ -50,8 +55,8 @@ class VoteNet(SingleStage3DDetector):
         Returns:
             dict: Losses.
         """
-        embed()
-        points_cat = torch.stack(points)
+        points_cat, points = self._prepare_input(points, img_metas)
+
         x = self.extract_feat(points_cat)
         bbox_preds = self.bbox_head(x, self.train_cfg.sample_mod)
         loss_inputs = (points, gt_bboxes_3d, gt_labels_3d, pts_semantic_mask,

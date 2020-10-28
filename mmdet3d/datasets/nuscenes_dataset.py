@@ -437,6 +437,8 @@ class NuScenesDataset(Custom3DDataset):
 
         if not isinstance(results[0], dict):
             result_files = self._format_bbox(results, jsonfile_prefix)
+        elif isinstance(results[0], dict) and 'boxes_3d' in results[0].keys():
+            result_files = self._format_bbox(results, jsonfile_prefix)
         else:
             result_files = dict()
             for name in results[0]:
@@ -446,7 +448,9 @@ class NuScenesDataset(Custom3DDataset):
                 result_files.update(
                     {name: self._format_bbox(results_, tmp_file_)})
         return result_files, tmp_dir
-
+    def velocity_padding(self, result):
+        #just for 7 dim prediction , and padding 0 for velocity and do evaluation 
+        pass
     def evaluate(self,
                  results,
                  metric='bbox',
@@ -473,7 +477,6 @@ class NuScenesDataset(Custom3DDataset):
         Returns:
             dict[str, float]: Results of each evaluation metric.
         """
-        embed()
         result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
 
         if isinstance(result_files, dict):

@@ -142,10 +142,17 @@ class Points3DHead(nn.Module):
                                    )
         (points_front_targets, points_center_offset_targets) = targets
         
+                
+        
+
+        pos_normalizer =  torch.clamp((points_front_targets>0).sum(), min=1.0)
+
+
+
         front_point_loss = self.front_point_loss(point_front, points_front_targets)
 
         center_offset_loss = self.center_offset_loss(point_center_offset, points_center_offset_targets)
-
+        
         losses = dict(
             front_point_loss=front_point_loss,
             center_offset_loss=center_offset_loss,
@@ -193,7 +200,7 @@ class Points3DHead(nn.Module):
         gt_labels_3d = gt_labels_3d[valid_gt]  
         gt_corner3d = gt_bboxes_3d.corners 
         
-        (center_targets, size_targets, dir_class_targets,dir_res_targets) = self.bbox_coder.encode(gt_bboxes_3d, gt_labels_3d)
+        (center_targets, size_targets, dir_class_targets,dir_res_targets, extra_targets) = self.bbox_coder.encode(gt_bboxes_3d, gt_labels_3d)
          
         points_mask, assignment = self._assign_targets_by_points_inside(gt_bboxes_3d, point_xyz)
         num_bbox = len(gt_bboxes_3d.tensor)
