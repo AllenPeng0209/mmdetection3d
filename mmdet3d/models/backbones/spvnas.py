@@ -1,6 +1,6 @@
 import time
 from collections import OrderedDict, deque
-from mmdet.models import BACKBONES
+
 import torch
 import torch.nn as nn
 
@@ -11,16 +11,17 @@ from torchsparse.sparse_tensor import SparseTensor
 from torchsparse.point_tensor import PointTensor
 from torchsparse.utils.kernel_region import *
 from torchsparse.utils.helpers import *
-from IPython import embed
-from mmdet3d.models.utils import *
-from mmdet3d.core.modules.layers import *
-from mmdet3d.core.modules.modules import *
-from mmdet3d.core.modules.networks import *
+
+from core.models.utils import *
+
+from core.modules.layers import *
+from core.modules.modules import *
+from core.modules.networks import *
 
 
 __all__ = ['SPVNAS']
 
-@BACKBONES.register_module()
+
 class SPVNAS(RandomNet):
     base_channels = 32
     # [base_channels, 32, 64, 128, 256, 256, 128, 96, 96]
@@ -30,7 +31,7 @@ class SPVNAS(RandomNet):
     max_micro_depth = 2
     num_down_stages = len(output_channels) // 2
 
-    def __init__(self, macro_depth_constraint=3, **kwargs):
+    def __init__(self, num_classes, macro_depth_constraint, **kwargs):
         super().__init__()
         self.pres = kwargs.get('pres', 0.05)
         self.vres = kwargs.get('vres', 0.05)
@@ -162,12 +163,13 @@ class SPVNAS(RandomNet):
                                no_bn=False),
         ])
 
+        self.classifier = DynamicLinear(output_channels[-1], num_classes)
+        self.classifier.set_output_channel(num_classes)
 
 
         self.dropout = nn.Dropout(0.3, True)
         self.weight_initialization()
-    def init_weights(self, pretrained=None):
-        pass
+
     def weight_initialization(self):
         for m in self.modules():
             if isinstance(m, nn.BatchNorm1d):
@@ -322,11 +324,9 @@ class SPVNAS(RandomNet):
 
     def forward(self, x):
         # x: SparseTensor z: PointTensor
-        
-        
-        #need to transform torch.tensor to SparseTensor
         z = PointTensor(x.F, x.C.float())
-        x0 = initial_voxelize(z, self.pres, self.vres)
+        #x0 = initial_voxelize(z, self.pres, self.vres)
+        x0 = point_to_voxel(x, z)
         
         x0 = self.stem(x0)
         z0 = voxel_to_point(x0, z)
@@ -372,3 +372,4 @@ class SPVNAS(RandomNet):
         out = self.classifier(z3.F)
 
         return out
+

@@ -88,7 +88,7 @@ class PointsDetHead(VoteHead):
         else:
             self.velocity_loss = None
         self.num_candidates = vote_module_cfg['num_points']
-        self.front_points_threshold =0.8 
+        self.front_points_threshold =0.3 
         self.pos_distance_thr=10.0
         self.expand_dims_length=0.05
         self.sample_mod='spec'
@@ -143,13 +143,13 @@ class PointsDetHead(VoteHead):
         
         points_feature, points_coors ,points_indices = self._extract_input(feat_dict) 
         points_cls , points_reg = point_preds
-        front_points_inds = points_cls> self.front_points_threshold
+        front_points_inds = points_cls.sigmoid() < self.front_points_threshold
         #shift_points_to_center = point_xyz[0][front_points[:,0]] + points_reg[front_points[:,0]]
         #sample_indices = point_xyz.new_tensor(torch.randint(0, 512, (batch_size, 512)), dtype=torch.int32)
         #shift_points_to_center_sample = shift_points_to_center[sample_indices]
         batch_size = len(point_xyz)
         sample_num = 512  
-        sample_indices = torch.randint(0, front_points_inds.sum(), (batch_size, sample_num))
+        sample_indices = torch.randint(0, max(128,front_points_inds.sum()), (batch_size, sample_num))
         point_xyz = torch.cat(point_xyz)
         front_points_sample = point_xyz[front_points_inds[:,0]][sample_indices]
         front_points_feature =  points_feature[front_points_inds[:,0]][sample_indices].permute(0,2,1)

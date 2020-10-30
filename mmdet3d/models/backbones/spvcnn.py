@@ -85,7 +85,7 @@ class SPVCNN(nn.Module):
         cr = kwargs.get('cr', 1.0)
         cs = [32, 32, 64, 128, 256, 256, 128, 96, 96]
         cs = [int(cr * x) for x in cs]
-
+        bev = [64, 32]
         self.pres = 0.05
         self.vres = 0.05
 
@@ -118,7 +118,10 @@ class SPVCNN(nn.Module):
             ResidualBlock(cs[3], cs[4], ks=3, stride=1, dilation=1),
             ResidualBlock(cs[4], cs[4], ks=3, stride=1, dilation=1),
         )
-
+       
+        self.tobev_1 = nn.Sequential(
+            spnn.ToDenseBEVConvolution(in_channels=128,out_channels=128,shape=np.array([1,128,bev[0],bev[0]])))
+        self.tobev_2 = nn.Sequential(spnn.ToDenseBEVConvolution(in_channels=256,out_channels=128,shape=np.array([1,128,bev[1],bev[1]])))
         self.up1 = nn.ModuleList([
             BasicDeconvolutionBlock(cs[4], cs[5], ks=2, stride=2),
             nn.Sequential(
@@ -199,6 +202,7 @@ class SPVCNN(nn.Module):
         x2 = self.stage2(x1)
         x3 = self.stage3(x2)
         x4 = self.stage4(x3)
+        
         z1 = voxel_to_point(x4, z0)
         z1.F = z1.F + self.point_transforms[0](z0.F)
 
@@ -227,24 +231,14 @@ class SPVCNN(nn.Module):
         z3.F = z3.F + self.point_transforms[2](z2.F)
         #point_feature = z3.F
         
-        #TODO scatter the feature back to N, C ,W, H shape
+        #TODO scatter the feature back to N, C , H,W shape
         #TODO can design handcraft downscale map to config and pass in here
-        voxel_feature_outs = [] 
+
+        voxel_feature_outs = []
+        voxel_feature_outs.append(self.tobev_1(x3))
+        voxel_feature_outs.append(self.tobev_2(x4))
+        
         batch_size = x.C[:, 0][-1] + 1
-        '''
-        voxel_feature1 =  spconv.SparseConvTensor(x3.F, x3.C, 
-                                                 ([5, 200, 176]),batch_size).dense()
-        voxel_feature2 =  spconv.SparseConvTensor(x4.F, x4.C,
-                                                 ([2, 100, 88]),batch_size).dense()
-        N, C, D, H, W = voxel_feature1.shape
-        voxel_feature1 = voxel_feature1.view(N, C * D, H, W) 
-        N, C, D, H, W = voxel_feature2.shape
-        voxel_feature2 = voxel_feature2.view(N, C * D, H, W)
-        voxel_feature_outs.append(voxel_feature1)
-        voxel_feature_outs.append(voxel_feature2)
-        # voxel_feature for detection head 
-        # point_feature for segmentation head 
-        '''
         
         point_xyz=[] 
         point_feature =[]
@@ -254,9 +248,10 @@ class SPVCNN(nn.Module):
             point_xyz.append(x.F[:, :3][inds])
             point_feature.append(z3.F[:,:][inds])
             point_coors.append(z3.C[:,:][inds]) 
+        
         #point_xyz= torch.stack(point_xyz)
         #point_feature = torch.stack(point_feature)
-        
+        #feature_dict = {'voxel_feature':tuple(voxel_feature_outs)}
         #point_xyz= x.F[:, :3]
         feature_dict = {'voxel_feature':tuple(voxel_feature_outs), 'point_feature': z3 ,'point_xyz':point_xyz}
         

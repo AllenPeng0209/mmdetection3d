@@ -84,4 +84,5 @@ class SECOND(nn.Module):
             
             x = self.blocks[i](x)
             outs.append(x)
+        embed()
         return tuple(outs)

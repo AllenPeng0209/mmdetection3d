@@ -1,4 +1,4 @@
-voxel_size = [0.1, 0.1, 0.2]
+voxel_size = [0.2, 0.2, 0.2]
 model = dict(
     type='SuperNet',
     pts_voxel_layer=dict(
@@ -7,7 +7,7 @@ model = dict(
     pts_middle_encoder=dict(
         type='SPVEncoder',
         in_channels=5,
-        sparse_shape=[41, 1024, 1024],
+        sparse_shape=[41, 512, 512],
         output_channels=128,
         order=('conv', 'norm', 'act'),
         encoder_channels=((16, 16, 32), (32, 32, 64), (64, 64, 128), (128,
@@ -24,7 +24,7 @@ model = dict(
         conv_cfg=dict(type='Conv2d', bias=False)),
     pts_neck=dict(
         type='SECONDFPN',
-        in_channels=[128, 256],
+        in_channels=[128, 128],
         out_channels=[256, 256],
         upsample_strides=[1, 2],
         norm_cfg=dict(type='BN', eps=1e-3, momentum=0.01),
@@ -119,7 +119,7 @@ model = dict(
 # model training and testing settings
 train_cfg = dict(
     pts=dict(
-        grid_size=[1024, 1024, 40],
+        grid_size=[512, 512, 40],
         voxel_size=voxel_size,
         out_size_factor=8,
         dense_reg=1,

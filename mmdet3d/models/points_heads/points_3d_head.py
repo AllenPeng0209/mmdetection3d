@@ -142,13 +142,6 @@ class Points3DHead(nn.Module):
                                    )
         (points_front_targets, points_center_offset_targets) = targets
         
-                
-        
-
-        pos_normalizer =  torch.clamp((points_front_targets>0).sum(), min=1.0)
-
-
-
         front_point_loss = self.front_point_loss(point_front, points_front_targets)
 
         center_offset_loss = self.center_offset_loss(point_center_offset, points_center_offset_targets)

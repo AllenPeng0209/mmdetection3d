@@ -42,11 +42,7 @@ class SuperNet(MVXTwoStageDetector):
         batch_size = coors[-1, 0] + 1
         x = self.pts_middle_encoder(voxel_features, coors, batch_size)
         x = self.pts_backbone(x)
-        #TODO waiting for torchsparse lib open bev function , and it can covert back to second
-        ''' 
-        if self.with_pts_neck:
-            x = self.pts_neck(x)
-        '''
+        
         return x
     def forward_pts_train(self,
                           points,
@@ -69,25 +65,31 @@ class SuperNet(MVXTwoStageDetector):
         Returns:
             dict: Losses of each branch.
         """
+        losses={}
         #point-base branch :
         point_xyz = pts_feats['point_xyz']
-        point_preds = self.pts_points_head(pts_feats['point_feature'])
-        points_loss_inputs = [point_xyz ,gt_bboxes_3d, gt_labels_3d, point_preds]
-        points_losses = self.pts_points_head.loss(*points_loss_inputs)
-
-        bboxs_preds = self.pts_roi_head(point_xyz, point_preds, pts_feats['point_feature']) 
-        points_bboxs_loss_inputs = [bboxs_preds, points ,gt_bboxes_3d, gt_labels_3d, point_xyz]
-        points_bboxs_losses = self.pts_roi_head.loss(*points_bboxs_loss_inputs) 
+        
+        if self.pts_points_head:
+            point_preds = self.pts_points_head(pts_feats['point_feature'])
+            points_loss_inputs = [point_xyz ,gt_bboxes_3d, gt_labels_3d, point_preds]
+            points_losses = self.pts_points_head.loss(*points_loss_inputs)
+            losses.update(points_losses)
         '''
-        #voxel-base branch
-        voxel_preds = self.pts_bbox_head(pts_feats['voxel_feature'])
-        voxel_loss_inputs = [gt_bboxes_3d, gt_labels_3d, voxel_preds]
-        voxel_losses = self.pts_bbox_head.loss(*voxel_loss_inputs)
+        if self.pts_roi_head:
+            bboxs_preds = self.pts_roi_head(point_xyz, point_preds, pts_feats['point_feature']) 
+            points_bboxs_loss_inputs = [bboxs_preds, points ,gt_bboxes_3d, gt_labels_3d, point_xyz]
+            points_bboxs_losses = self.pts_roi_head.loss(*points_bboxs_loss_inputs) 
+            losses.update(points_bboxs_losses)
         '''
-        losses={}
-        losses.update(points_losses)
-        #losses.update(voxel_losses)
-        losses.update(points_bboxs_losses)
+        if self.pts_bbox_head:
+            #voxel-base branch
+            x = self.pts_neck(pts_feats['voxel_feature']) 
+            voxel_preds = self.pts_bbox_head(x)
+            voxel_loss_inputs = [gt_bboxes_3d, gt_labels_3d, voxel_preds]
+            voxel_losses = self.pts_bbox_head.loss(*voxel_loss_inputs)
+            losses.update(voxel_losses)   
+            
+        
         return losses
 
     def simple_test_pts(self, pts_feats, img_metas, rescale=False):

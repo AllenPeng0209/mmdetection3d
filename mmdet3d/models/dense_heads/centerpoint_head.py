@@ -13,7 +13,7 @@ from mmdet3d.models.utils import clip_sigmoid
 from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu
 from mmdet.core import build_bbox_coder, multi_apply
 
-
+from IPython import embed
 @HEADS.register_module()
 class SeparateHead(nn.Module):
     """SeparateHead for CenterHead.
@@ -330,7 +330,6 @@ class CenterHead(nn.Module):
             list[dict]: Output results for tasks.
         """
         ret_dicts = []
-
         x = self.shared_conv(x)
 
         for task in self.task_heads:
