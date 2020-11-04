@@ -1,13 +1,13 @@
-voxel_size = [0.1, 0.1, 0.2]
+voxel_size = [0.2, 0.2, 0.2]
 model = dict(
-    type='SuperNet',
+    type='CenterPoint',
     pts_voxel_layer=dict(
         max_num_points=10, voxel_size=voxel_size, max_voxels=(90000, 120000)),
     pts_voxel_encoder=dict(type='HardSimpleVFE', num_features=5),
     pts_middle_encoder=dict(
-        type='SPVCNN',
+        type='SparseEncoder',
         in_channels=5,
-        sparse_shape=[41, 1024, 1024],
+        sparse_shape=[41, 512, 512],
         output_channels=128,
         order=('conv', 'norm', 'act'),
         encoder_channels=((16, 16, 32), (32, 32, 64), (64, 64, 128), (128,
@@ -24,71 +24,12 @@ model = dict(
         conv_cfg=dict(type='Conv2d', bias=False)),
     pts_neck=dict(
         type='SECONDFPN',
-        in_channels=[128, 128],
+        in_channels=[128, 256],
         out_channels=[256, 256],
         upsample_strides=[1, 2],
         norm_cfg=dict(type='BN', eps=1e-3, momentum=0.01),
         upsample_cfg=dict(type='deconv', bias=False),
         use_conv_for_no_stride=True),
-    pts_points_head = dict(
-        type='Points3DHead',
-        num_classes=10,
-        bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
-        front_point_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0),
-        center_offset_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0)),
-    pts_roi_head = dict(
-        type ='PointsDetHead',
-        num_classes=16,
-        bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
-        in_channels=256,
-        vote_module_cfg=dict(
-            in_channels=96,
-            num_points=256,
-            gt_per_seed=1,
-            conv_channels=(128, ),
-            conv_cfg=dict(type='Conv1d'),
-            norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.1),
-            with_res_feat=False,
-            vote_xyz_range=(3.0, 3.0, 2.0)),
-        vote_aggregation_cfg=dict(
-            type='PointSAModuleMSG',
-            num_point=256,
-            radii=(4.8, 6.4),
-            sample_nums=(16, 32),
-            mlp_channels=((96, 256, 256, 512), (96, 256, 512, 1024)),
-            norm_cfg=dict(type='BN2d', eps=1e-3, momentum=0.1),
-            use_xyz=True,
-            normalize_xyz=False,
-            bias=True),
-        pred_layer_cfg=dict(
-            in_channels=1536,
-            shared_conv_channels=(512, 128),
-            cls_conv_channels=(128, ),
-            reg_conv_channels=(128, ),
-            conv_cfg=dict(type='Conv1d'),
-            norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.1),
-            bias=True),
-        conv_cfg=dict(type='Conv1d'),
-        norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.1),
-        objectness_loss=dict(
-            type='CrossEntropyLoss',
-            use_sigmoid=True,
-            reduction='mean',
-            loss_weight=1.0),
-        center_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        dir_class_loss=dict(
-            type='CrossEntropyLoss', reduction='mean', loss_weight=1.0),
-                dir_res_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        size_res_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        corner_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        vote_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        velocity_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0), 
-        ),  
-         
     pts_bbox_head=dict(
         type='CenterHead',
         in_channels=sum([256, 256]),
@@ -119,7 +60,7 @@ model = dict(
 # model training and testing settings
 train_cfg = dict(
     pts=dict(
-        grid_size=[1024, 1024, 40],
+        grid_size=[512, 512, 40],
         voxel_size=voxel_size,
         out_size_factor=8,
         dense_reg=1,
@@ -129,11 +70,6 @@ train_cfg = dict(
         code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]))
 test_cfg = dict(
     pts=dict(
-        nms_cfg=dict(type='nms', iou_thr=0.1),
-        sample_mod='spec', 
-        score_thr=0.0,
-        per_class_proposal=True, 
-        max_output_num=100,
         post_center_limit_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
         max_per_img=500,
         max_pool_nms=False,

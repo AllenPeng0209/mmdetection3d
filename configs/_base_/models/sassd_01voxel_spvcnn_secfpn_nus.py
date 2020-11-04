@@ -5,7 +5,7 @@ model = dict(
         max_num_points=10, voxel_size=voxel_size, max_voxels=(90000, 120000)),
     pts_voxel_encoder=dict(type='HardSimpleVFE', num_features=5),
     pts_middle_encoder=dict(
-        type='SPVEncoder',
+        type='SPVCNN',
         in_channels=5,
         sparse_shape=[41, 1024, 1024],
         output_channels=128,
@@ -15,7 +15,7 @@ model = dict(
         encoder_paddings=((0, 0, 1), (0, 0, 1), (0, 0, [0, 1, 1]), (0, 0)),
         block_type='basicblock'),
     pts_backbone=dict(
-        type='SPVCNN',
+        type='SECOND',
         in_channels=256,
         out_channels=[128, 256],
         layer_nums=[5, 5],

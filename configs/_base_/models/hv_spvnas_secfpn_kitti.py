@@ -12,9 +12,10 @@ model = dict(
         in_channels=4,
         sparse_shape=[41, 1600, 1408],
         order=('conv', 'norm', 'act')),
-    
     backbone=dict(
         type='SPVNAS',
+        num_classes=16,
+        macro_depth_constraint=3,
         in_channels=256,
         layer_nums=[5, 5],
         layer_strides=[1, 2],
