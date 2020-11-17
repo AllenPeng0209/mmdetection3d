@@ -1,6 +1,4 @@
 voxel_size = [0.2, 0.2, 0.2]
-#point_cloud_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
-
 model = dict(
     type='SuperNet',
     pts_voxel_layer=dict(
@@ -35,17 +33,17 @@ model = dict(
     pts_points_head = dict(
         type='Points3DHead',
         num_classes=2,
-        in_channels=96,
         bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
         front_point_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0),
         center_offset_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0)),
     
-    pts_points_ins_head = dict(
-        type='PointsInsHead',
-        num_classes=11,# 0 class as background
-        bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
+    pts_points_seg_head = dict(
+        type='PointsSegHead',
+        num_classes=16,
         in_channels=96,
-        points_sem_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0)),
+        semantic_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0)),
+  
+
     pts_roi_head = dict(
         type ='PointsDetHead',
         num_classes=10,

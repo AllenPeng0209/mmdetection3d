@@ -1,7 +1,7 @@
 import numpy as np
 from mmcv import is_tuple_of
 from mmcv.utils import build_from_cfg
-
+from IPython import embed
 from mmdet3d.core import VoxelGenerator
 from mmdet3d.core.bbox import box_np_ops
 from mmdet.datasets.builder import PIPELINES
@@ -518,6 +518,8 @@ class PointsRangeFilter(object):
         if 'cur_points_num' in input_dict.keys():
             input_dict['cur_points_num'] = points_mask[:input_dict[
                 'cur_points_num']].sum()
+        if 'gt_seg_3d' in input_dict:
+            input_dict['gt_seg_3d'] = input_dict['gt_seg_3d'][points_mask]
         return input_dict
 
     def __repr__(self):

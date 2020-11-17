@@ -3,7 +3,7 @@ import numpy as np
 
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import LoadAnnotations
-
+from IPython import embed
 
 @PIPELINES.register_module()
 class LoadMultiViewImageFromFiles(object):
@@ -482,8 +482,10 @@ class LoadAnnotations3D(LoadAnnotations):
         Returns:
             dict: The dict containing the semantic segmentation annotations.
         """
+        
         pts_semantic_mask_path = results['ann_info']['pts_semantic_mask_path']
-
+        '''
+        #original code is not for nuscense lidarseg
         if self.file_client is None:
             self.file_client = mmcv.FileClient(**self.file_client_args)
         try:
@@ -494,9 +496,11 @@ class LoadAnnotations3D(LoadAnnotations):
             mmcv.check_file_exist(pts_semantic_mask_path)
             pts_semantic_mask = np.fromfile(
                 pts_semantic_mask_path, dtype=np.long)
-
-        results['pts_semantic_mask'] = pts_semantic_mask
-        results['pts_seg_fields'].append('pts_semantic_mask')
+        '''
+        
+        results['gt_seg_3d'] = np.fromfile(pts_semantic_mask_path,np.uint8)
+        #results['pts_seg_fields'].append('pts_semantic_mask')
+        
         return results
 
     def __call__(self, results):

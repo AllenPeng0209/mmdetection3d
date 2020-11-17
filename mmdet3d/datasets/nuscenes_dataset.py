@@ -113,7 +113,8 @@ class NuScenesDataset(Custom3DDataset):
                  filter_empty_gt=True,
                  test_mode=False,
                  eval_version='detection_cvpr_2019',
-                 use_valid_flag=False):
+                 use_valid_flag=False,
+                 with_lidarseg=True):
         self.load_interval = load_interval
         self.use_valid_flag = use_valid_flag
         super().__init__(
@@ -125,10 +126,9 @@ class NuScenesDataset(Custom3DDataset):
             box_type_3d=box_type_3d,
             filter_empty_gt=filter_empty_gt,
             test_mode=test_mode)
-        if test_mode == True:
-            self.data_infos = self.load_annotations(self.ann_file)[::20]
         self.with_velocity = with_velocity
         self.eval_version = eval_version
+        self.with_lidarseg=with_lidarseg
         from nuscenes.eval.detection.config import config_factory
         self.eval_detection_configs = config_factory(self.eval_version)
         if self.modality is None:
@@ -199,6 +199,7 @@ class NuScenesDataset(Custom3DDataset):
                     from lidar to different cameras.
                 - ann_info (dict): Annotation info.
         """
+      
         info = self.data_infos[index]
         # standard protocal modified from SECOND.Pytorch
         input_dict = dict(
@@ -231,11 +232,12 @@ class NuScenesDataset(Custom3DDataset):
                     img_filename=image_paths,
                     lidar2img=lidar2img_rts,
                 ))
-
+        
         if not self.test_mode:
+            
             annos = self.get_ann_info(index)
             input_dict['ann_info'] = annos
-
+            
         return input_dict
 
     def get_ann_info(self, index):
@@ -285,6 +287,11 @@ class NuScenesDataset(Custom3DDataset):
             gt_bboxes_3d=gt_bboxes_3d,
             gt_labels_3d=gt_labels_3d,
             gt_names=gt_names_3d)
+        
+        if self.with_lidarseg :
+            
+            lidar_seg_path = './data/nuscenes/lidarseg/v1.0-trainval/'+info['lidar_token']+'_lidarseg.bin'
+        anns_results["pts_semantic_mask_path"]= lidar_seg_path 
         return anns_results
 
     def _format_bbox(self, results, jsonfile_prefix=None):

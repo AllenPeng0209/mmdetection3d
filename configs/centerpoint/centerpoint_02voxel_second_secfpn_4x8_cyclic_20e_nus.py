@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/datasets/nus-3d.py',
-    '../_base_/models/supernet_01voxel_spvcnn_secfpn_nus.py',
+    '../_base_/models/centerpoint_02voxel_second_secfpn_nus.py',
     '../_base_/schedules/cyclic_20e.py', '../_base_/default_runtime.py'
 ]
 
@@ -143,5 +143,4 @@ data = dict(
     val=dict(pipeline=test_pipeline, classes=class_names),
     test=dict(pipeline=test_pipeline, classes=class_names))
 
-find_unused_parameters = True
 evaluation = dict(interval=20)

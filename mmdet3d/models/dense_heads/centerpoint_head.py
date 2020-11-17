@@ -643,6 +643,7 @@ class CenterHead(nn.Module):
             batch_reg_preds = [box['bboxes'] for box in temp]
             batch_cls_preds = [box['scores'] for box in temp]
             batch_cls_labels = [box['labels'] for box in temp]
+            
             if self.test_cfg['nms_type'] == 'circle':
                 ret_task = []
                 for i in range(batch_size):

@@ -15,7 +15,7 @@ from IPython import embed
 from mmdet3d.models.utils import *
 
 
-__all__ = ['SPVCNN']
+__all__ = ['DETSPVCNN']
 
 
 class BasicConvolutionBlock(nn.Module):
@@ -78,14 +78,14 @@ class ResidualBlock(nn.Module):
         return out
 
 @BACKBONES.register_module() 
-class SPVCNN(nn.Module):
-    def __init__(self, in_channels=4,bev=[[200,176],[100,88]], **kwargs):
+class DETSPVCNN(nn.Module):
+    def __init__(self, in_channels=4,bev_shape=[[200,176],[400,352]], **kwargs):
         super().__init__()
 
         cr = kwargs.get('cr', 1.0)
         cs = [32, 32, 64, 128, 256, 256, 128, 96, 96]
         cs = [int(cr * x) for x in cs]
-        self.bev = bev
+        self.bev = bev_shape
         self.pres = 0.05
         self.vres = 0.05
       
@@ -120,8 +120,8 @@ class SPVCNN(nn.Module):
         )
        
         self.tobev_1 = nn.Sequential(
-            spnn.ToDenseBEVConvolution(in_channels=128,out_channels=128,shape=np.array([1,128,self.bev[0][0],self.bev[0][1]])))
-        self.tobev_2 = nn.Sequential(spnn.ToDenseBEVConvolution(in_channels=256,out_channels=256,shape=np.array([1,256,self.bev[1][0],self.bev[1][1]])))
+            spnn.ToDenseBEVConvolution(in_channels=cs[5],out_channels=64,shape=np.array([self.bev[0][0],64,self.bev[0][1]])))
+        self.tobev_2 = nn.Sequential(spnn.ToDenseBEVConvolution(in_channels=cs[6],out_channels=64,shape=np.array([self.bev[1][0],64,self.bev[1][1]])))
         self.up1 = nn.ModuleList([
             BasicDeconvolutionBlock(cs[4], cs[5], ks=2, stride=2),
             nn.Sequential(
@@ -140,23 +140,6 @@ class SPVCNN(nn.Module):
             )
         ])
 
-        self.up3 = nn.ModuleList([
-            BasicDeconvolutionBlock(cs[6], cs[7], ks=2, stride=2),
-            nn.Sequential(
-                ResidualBlock(cs[7] + cs[1], cs[7], ks=3, stride=1,
-                              dilation=1),
-                ResidualBlock(cs[7], cs[7], ks=3, stride=1, dilation=1),
-            )
-        ])
-
-        self.up4 = nn.ModuleList([
-            BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
-            nn.Sequential(
-                ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                              dilation=1),
-                ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
-            )
-        ])
 
 
         self.point_transforms = nn.ModuleList([
@@ -189,9 +172,8 @@ class SPVCNN(nn.Module):
 
     def forward(self, x):
         # x: SparseTensor z: PointTensor
-        embed()
-        #z = PointTensor(x.F, x.C.float())
-        #x0 = initial_voxelize(z, self.pres, self.vres)
+        z = PointTensor(x.F, x.C.float())
+        x0 = initial_voxelize(z, self.pres, self.vres)
         x0 = self.stem(x)
         z0 = voxel_to_point(x0, z, nearest=False)
         z0.F = z0.F
@@ -214,45 +196,12 @@ class SPVCNN(nn.Module):
         y2 = self.up2[0](y1)
         y2 = torchsparse.cat([y2, x2])
         y2 = self.up2[1](y2)
-        z2 = voxel_to_point(y2, z1)
-        z2.F = z2.F + self.point_transforms[1](z1.F)
 
-        y3 = point_to_voxel(y2, z2)
-        y3.F = self.dropout(y3.F)
-        y3 = self.up3[0](y3)
-        y3 = torchsparse.cat([y3, x1])
-        y3 = self.up3[1](y3)
-
-        y4 = self.up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
-        y4 = self.up4[1](y4)
-        z3 = voxel_to_point(y4, z2)
-        z3.F = z3.F + self.point_transforms[2](z2.F)
-        #point_feature = z3.F
-        
-        #TODO scatter the feature back to N, C , H,W shape
-        #TODO can design handcraft downscale map to config and pass in here
 
         voxel_feature_outs = []
-        voxel_feature_outs.append(self.tobev_1(x3))
-        voxel_feature_outs.append(self.tobev_2(x4))
+        voxel_feature_outs.append(self.tobev_1(y1))
+        voxel_feature_outs.append(self.tobev_2(y2))
         
-        batch_size = x.C[:, 0][-1] + 1
         
-        point_xyz=[] 
-        point_feature =[]
-        point_coors = []
-        for i in range(batch_size):
-            inds = (x.C[:, 0]==i)
-            point_xyz.append(x.F[:, :3][inds])
-            point_feature.append(z3.F[:,:][inds])
-            point_coors.append(z3.C[:,:][inds]) 
         
-        #point_xyz= torch.stack(point_xyz)
-        #point_feature = torch.stack(point_feature)
-        #feature_dict = {'voxel_feature':tuple(voxel_feature_outs)}
-        #point_xyz= x.F[:, :3]
         return tuple(voxel_feature_outs)
-        feature_dict = {'voxel_feature':tuple(voxel_feature_outs), 'point_feature': z3 ,'point_xyz':point_xyz}
-        
-        return feature_dict

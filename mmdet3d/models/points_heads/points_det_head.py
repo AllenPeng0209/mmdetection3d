@@ -139,17 +139,30 @@ class PointsDetHead(VoteHead):
         point_feature,point_coors, point_indices  = feat_dict.F, feat_dict.C, feat_dict.idx_query[16]
         return point_feature,point_coors, point_indices
      
-    def forward(self, point_xyz, point_preds, feat_dict):
-        
+    def forward(self, point_xyz, point_preds, point_ins_preds ,feat_dict):
+         
         points_feature, points_coors ,points_indices = self._extract_input(feat_dict) 
         points_cls , points_reg = point_preds
         front_points_inds = points_cls.sigmoid() < self.front_points_threshold
+        if front_points_inds.sum()==0:
+            return None
         #shift_points_to_center = point_xyz[0][front_points[:,0]] + points_reg[front_points[:,0]]
         #sample_indices = point_xyz.new_tensor(torch.randint(0, 512, (batch_size, 512)), dtype=torch.int32)
         #shift_points_to_center_sample = shift_points_to_center[sample_indices]
         batch_size = len(point_xyz)
         sample_num = 512  
-        sample_indices = torch.randint(0, max(128,front_points_inds.sum()), (batch_size, sample_num))
+        # at least get one point, avoid error        
+        sample_indices = torch.randint(0, max(1,front_points_inds.sum()), (batch_size, sample_num))
+        # sample sem points
+        '''
+        for i in range(self.num_classes+1):
+            #0 is background , not sample
+            class_points_inds = point_ins_preds[:,i+1].sigmoid() < self.sem_cls_threshold
+            sample_indices = torch.randint(0, max(128 ,class_points_inds.sum()), (batch_size, sample_num))
+            front_points_sample = point_xyz[front_points_inds[:,0]][sample_indices]
+        '''
+        
+ 
         point_xyz = torch.cat(point_xyz)
         front_points_sample = point_xyz[front_points_inds[:,0]][sample_indices]
         front_points_feature =  points_feature[front_points_inds[:,0]][sample_indices].permute(0,2,1)

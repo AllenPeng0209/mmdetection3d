@@ -58,7 +58,7 @@ class Points3DHead(nn.Module):
         self.bbox_coder = build_bbox_coder(bbox_coder)  
         self.front_point_loss = build_loss(front_point_loss)
         self.center_offset_loss = build_loss(center_offset_loss)
-        self.point_fc = nn.Linear(96, 64, bias=False)
+        self.point_fc = nn.Linear(in_channels, 64, bias=False)
         self.point_front = nn.Linear(64, 1, bias=False)
         self.point_center_offset = nn.Linear(64, 3, bias=False)
     def _get_cls_out_channels(self):
@@ -101,7 +101,6 @@ class Points3DHead(nn.Module):
                 3. if points from cls branch above threshold, reg head predict its center offset
                  
         """
-        
         pointwise = self.point_fc(feat_dict.F)
         point_front = self.point_front(pointwise)
         point_center_offset = self.point_center_offset(pointwise)   
@@ -141,7 +140,6 @@ class Points3DHead(nn.Module):
                                    pts_semantic_mask, pts_instance_mask,
                                    )
         (points_front_targets, points_center_offset_targets) = targets
-        
         front_point_loss = self.front_point_loss(point_front, points_front_targets)
 
         center_offset_loss = self.center_offset_loss(point_center_offset, points_center_offset_targets)
@@ -171,7 +169,7 @@ class Points3DHead(nn.Module):
             idx = torch.nonzero(point_xyz == i).view(-1)
             batch_preds_coors.append(point_preds_coors[idx, 1:])
         '''
-        pts_labels, pts_center_offset =multi_apply( self.get_targets_single, point_xyz,                             gt_bboxes_3d, gt_labels_3d)
+        pts_labels, pts_center_offset =multi_apply( self.get_targets_single, point_xyz, gt_bboxes_3d, gt_labels_3d)
          
         pts_center_offset = torch.cat(pts_center_offset)
         pts_labels = torch.cat(pts_labels) 
@@ -194,7 +192,6 @@ class Points3DHead(nn.Module):
         gt_corner3d = gt_bboxes_3d.corners 
         
         (center_targets, size_targets, dir_class_targets,dir_res_targets, extra_targets) = self.bbox_coder.encode(gt_bboxes_3d, gt_labels_3d)
-         
         points_mask, assignment = self._assign_targets_by_points_inside(gt_bboxes_3d, point_xyz)
         num_bbox = len(gt_bboxes_3d.tensor)
         point_front = points_mask.max(1)[0]
@@ -235,7 +232,6 @@ class Points3DHead(nn.Module):
         num_bbox = bboxes_3d.tensor.shape[0]
         if isinstance(bboxes_3d, LiDARInstance3DBoxes):
             assignment = bboxes_3d.points_in_boxes(points).long()
-            
             points_mask = assignment.new_zeros(
                 [assignment.shape[0], num_bbox + 1])
             assignment[assignment == -1] = num_bbox

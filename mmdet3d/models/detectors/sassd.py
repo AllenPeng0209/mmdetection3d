@@ -40,14 +40,8 @@ class SASSD(MVXTwoStageDetector):
 
         voxel_features = self.pts_voxel_encoder(voxels, num_points, coors)
         batch_size = coors[-1, 0] + 1
-        x = self.pts_middle_encoder(voxel_features, coors, batch_size)
-        x = self.pts_backbone(x)
-        #TODO waiting for torchsparse lib open bev function , and it can covert back to second
-        ''' 
-        if self.with_pts_neck:
-            x = self.pts_neck(x)
-        '''
-        return x
+        feat_dict = self.pts_middle_encoder(voxel_features, coors, batch_size)
+        return feat_dict
     def forward_pts_train(self,
                           points,
                           pts_feats,
@@ -70,28 +64,45 @@ class SASSD(MVXTwoStageDetector):
             dict: Losses of each branch.
         """
         #point-base branch :
+
+
         point_xyz = pts_feats['point_xyz']
         point_preds = self.pts_points_head(pts_feats['point_feature'])
         points_loss_inputs = [point_xyz ,gt_bboxes_3d, gt_labels_3d, point_preds]
         points_losses = self.pts_points_head.loss(*points_loss_inputs)
-        '''
+        
         #voxel-base branch
-        voxel_preds = self.pts_bbox_head(pts_feats['voxel_feature'])
+        x = self.pts_backbone(pts_feats['voxel_feature'])
+        x = self.pts_neck(x) 
+        voxel_preds = self.pts_bbox_head(x)
+        #for visualize
+        #bbox_list = self.pts_bbox_head.get_bboxes( voxel_preds, img_metas, rescale=False)
+        #bbox_results = [ bbox3d2result(bboxes, scores, labels) 
+        #               for bboxes, scores, labels in bbox_list ]
+        #self.simple_vis(point_xyz, point_preds, gt_bboxes_3d, bbox_results)
         voxel_loss_inputs = [gt_bboxes_3d, gt_labels_3d, voxel_preds]
         voxel_losses = self.pts_bbox_head.loss(*voxel_loss_inputs)
-        '''
+           
         losses={}
         losses.update(points_losses)
-        #losses.update(voxel_losses)
+        losses.update(voxel_losses)
         return losses
-
+    def simple_vis(self, point_xyz, point_preds, gt_bbox,bbox_results):
+        import pickle 
+        with open('./vis/points.pkl', 'wb') as f:
+            pickle.dump(point_xyz, f)
+        with open('./vis/point_preds.pkl', 'wb') as f:
+            pickle.dump(point_preds, f) 
+        with open('./vis/gt_bbox.pkl', 'wb') as f: 
+            pickle.dump(gt_bbox, f) 
+        with open('./vis/bbox_results.pkl', 'wb') as f:
+            pickle.dump(bbox_results, f) 
     def simple_test_pts(self, pts_feats, img_metas, rescale=False):
         """Test function of point cloud branch."""
-        point_xyz = pts_feats['point_xyz'] 
-        point_preds = self.pts_points_head(pts_feats['point_feature'])
-        bboxs_preds = self.pts_roi_head(point_xyz, point_preds, pts_feats['point_feature']) 
-        bbox_list = self.pts_roi_head.get_bboxes(point_xyz ,bboxs_preds
-                                                 , img_metas, rescale=rescale)
+        x = self.pts_backbone(pts_feats['voxel_feature'])
+        x = self.pts_neck(x)
+        outs = self.pts_bbox_head(x)
+        bbox_list = self.pts_bbox_head.get_bboxes( outs, img_metas, rescale=rescale)
 
         bbox_results = [
             bbox3d2result(bboxes, scores, labels)

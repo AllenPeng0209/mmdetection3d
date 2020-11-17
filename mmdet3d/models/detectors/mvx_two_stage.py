@@ -36,7 +36,8 @@ class MVXTwoStageDetector(Base3DDetector):
                  img_rpn_head=None,
                  train_cfg=None,
                  test_cfg=None,
-                 pretrained=None):
+                 pretrained=None,
+                 ):
         super(MVXTwoStageDetector, self).__init__()
 
         if pts_voxel_layer:
@@ -249,6 +250,7 @@ class MVXTwoStageDetector(Base3DDetector):
                       img_metas=None,
                       gt_bboxes_3d=None,
                       gt_labels_3d=None,
+                      gt_seg_3d=None,
                       gt_labels=None,
                       gt_bboxes=None,
                       img=None,

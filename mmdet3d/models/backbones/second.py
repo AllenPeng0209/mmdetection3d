@@ -81,8 +81,6 @@ class SECOND(nn.Module):
         """
         outs = []
         for i in range(len(self.blocks)):
-            
             x = self.blocks[i](x)
             outs.append(x)
-        embed()
-        return tuple(outs)
+        return tuple(outs[-2:])

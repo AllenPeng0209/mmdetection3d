@@ -1,10 +1,8 @@
 voxel_size = [0.2, 0.2, 0.2]
-#point_cloud_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
-
 model = dict(
-    type='SuperNet',
+    type='SASSD',
     pts_voxel_layer=dict(
-        max_num_points=10, voxel_size=voxel_size, max_voxels=(90000, 120000)),
+        max_num_points=0, voxel_size=voxel_size, max_voxels=(90000, 120000)),
     pts_voxel_encoder=dict(type='HardSimpleVFE', num_features=5),
     pts_middle_encoder=dict(
         type='SPVCNN',
@@ -34,71 +32,10 @@ model = dict(
         use_conv_for_no_stride=True),
     pts_points_head = dict(
         type='Points3DHead',
-        num_classes=2,
-        in_channels=96,
-        bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
-        front_point_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0),
-        center_offset_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0)),
-    
-    pts_points_ins_head = dict(
-        type='PointsInsHead',
-        num_classes=11,# 0 class as background
-        bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
-        in_channels=96,
-        points_sem_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0)),
-    pts_roi_head = dict(
-        type ='PointsDetHead',
         num_classes=10,
         bbox_coder = dict(type='AnchorFreeBBoxCoder', num_dir_bins=12, with_rot=True),
-        in_channels=256,
-        vote_module_cfg=dict(
-            in_channels=96,
-            num_points=256,
-            gt_per_seed=1,
-            conv_channels=(128, ),
-            conv_cfg=dict(type='Conv1d'),
-            norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.1),
-            with_res_feat=False,
-            vote_xyz_range=(3.0, 3.0, 2.0)),
-        vote_aggregation_cfg=dict(
-            type='PointSAModuleMSG',
-            num_point=256,
-            radii=(4.8, 6.4),
-            sample_nums=(16, 32),
-            mlp_channels=((96, 256, 256, 512), (96, 256, 512, 1024)),
-            norm_cfg=dict(type='BN2d', eps=1e-3, momentum=0.1),
-            use_xyz=True,
-            normalize_xyz=False,
-            bias=True),
-        pred_layer_cfg=dict(
-            in_channels=1536,
-            shared_conv_channels=(512, 128),
-            cls_conv_channels=(128, ),
-            reg_conv_channels=(128, ),
-            conv_cfg=dict(type='Conv1d'),
-            norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.1),
-            bias=True),
-        conv_cfg=dict(type='Conv1d'),
-        norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.1),
-        objectness_loss=dict(
-            type='CrossEntropyLoss',
-            use_sigmoid=True,
-            reduction='mean',
-            loss_weight=1.0),
-        center_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        dir_class_loss=dict(
-            type='CrossEntropyLoss', reduction='mean', loss_weight=1.0),
-                dir_res_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        size_res_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        corner_loss=dict(
-            type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        vote_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0),
-        velocity_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=1.0), 
-        ),  
-         
+        front_point_loss=dict(type='FocalLoss', reduction='mean', loss_weight=1.0),
+        center_offset_loss=dict(type='SmoothL1Loss', reduction='mean', loss_weight=0.2)),
     pts_bbox_head=dict(
         type='CenterHead',
         in_channels=sum([128, 128]),

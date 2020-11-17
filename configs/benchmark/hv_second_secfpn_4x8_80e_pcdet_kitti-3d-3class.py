@@ -215,7 +215,7 @@ momentum_config = dict(
     cyclic_times=1,
     step_ratio_up=0.4)
 checkpoint_config = dict(interval=1)
-evaluation = dict(interval=2)
+evaluation = dict(interval=5)
 # yapf:disable
 log_config = dict(
     interval=50,
@@ -225,7 +225,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 80
+total_epochs = 40
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/sec_secfpn_80e'

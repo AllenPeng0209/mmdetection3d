@@ -4,10 +4,7 @@ from .nostem_regnet import NoStemRegNet
 from .pointnet2_sa_msg import PointNet2SAMSG
 from .pointnet2_sa_ssg import PointNet2SASSG
 from .second import SECOND
-from .spvnas import SPVNAS
-from .spvcnn import SPVCNN
-
 __all__ = [
     'ResNet', 'ResNetV1d', 'ResNeXt', 'SSDVGG', 'HRNet', 'NoStemRegNet',
-    'SECOND', 'PointNet2SASSG', 'PointNet2SAMSG', 'MultiBackbone', 'SPVNAS', 'SPVCNN'
+    'SECOND', 'PointNet2SASSG', 'PointNet2SAMSG', 'MultiBackbone',
 ]

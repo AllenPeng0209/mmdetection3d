@@ -6,6 +6,7 @@ _base_ = [
 
 # If point cloud range is changed, the models should also change their point
 # cloud range accordingly
+#point_cloud_range = [-10000, -10000, -100, 10000, 10000, 100] 
 point_cloud_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
 # For nuScenes we usually do 10-class detection
 class_names = [
@@ -65,6 +66,7 @@ train_pipeline = [
         load_dim=5,
         use_dim=5,
         file_client_args=file_client_args),
+    
     dict(
         type='LoadPointsFromMultiSweeps',
         sweeps_num=9,
@@ -72,7 +74,8 @@ train_pipeline = [
         file_client_args=file_client_args,
         pad_empty_sweeps=True,
         remove_close=True),
-    dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
+    dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_seg_3d=False),
+    
     dict(type='ObjectSample', db_sampler=db_sampler),
     dict(
         type='GlobalRotScaleTrans',

@@ -45,6 +45,43 @@ class HardSimpleVFE(nn.Module):
 
 
 @VOXEL_ENCODERS.register_module()
+class HardSimpleVFEV2(nn.Module):
+    """Simple voxel feature encoder used in SECOND.
+
+    It simply averages the values of points in a voxel.
+
+    Args:
+        num_features (int): Number of features to use. Default: 4.
+    """
+
+    def __init__(self, num_features=4):
+        super(HardSimpleVFE, self).__init__()
+        self.num_features = num_features
+        self.fp16_enabled = False
+
+    @force_fp32(out_fp16=True)
+    def forward(self, features, num_points, coors):
+        """Forward function.
+
+        Args:
+            features (torch.Tensor): Point features in shape
+                (N, M, 3(4)). N is the number of voxels and M is the maximum
+                number of points inside a single voxel.
+            num_points (torch.Tensor): Number of points in each voxel,
+                 shape (N, ).
+            coors (torch.Tensor): Coordinates of voxels.
+
+        Returns:
+            torch.Tensor: Mean of points inside each voxel in shape (N, 3(4))
+        """
+        points_mean = features[:, :, :self.num_features].sum(
+            dim=1, keepdim=False) / num_points.type_as(features).view(-1, 1)
+        # xyz min max mean 
+        return points_mean.contiguous()
+
+
+
+@VOXEL_ENCODERS.register_module()
 class DynamicSimpleVFE(nn.Module):
     """Simple dynamic voxel feature encoder used in DV-SECOND.
 

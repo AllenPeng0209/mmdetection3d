@@ -1,6 +1,7 @@
 import time
 from collections import OrderedDict, deque
-from mmdet.models import BACKBONES
+
+from ..registry import MIDDLE_ENCODERS
 import torch
 import torch.nn as nn
 
@@ -21,7 +22,8 @@ from mmdet3d.core.modules.networks import *
 
 __all__ = ['SPVNAS']
 
-@BACKBONES.register_module()
+
+@MIDDLE_ENCODERS.register_module()
 class SPVNAS(RandomNet):
     base_channels = 32
     # [base_channels, 32, 64, 128, 256, 256, 128, 96, 96]
