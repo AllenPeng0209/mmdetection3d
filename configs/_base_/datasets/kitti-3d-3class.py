@@ -79,7 +79,7 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=1,
     workers_per_gpu=0,
     train=dict(
         type='RepeatDataset',
@@ -120,4 +120,4 @@ data = dict(
         test_mode=True,
         box_type_3d='LiDAR'))
 
-evaluation = dict(interval=10)
+evaluation = dict(interval=2)

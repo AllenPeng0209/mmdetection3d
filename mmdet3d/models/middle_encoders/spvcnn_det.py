@@ -92,12 +92,13 @@ class ResidualBlock(nn.Module):
 
 @MIDDLE_ENCODERS.register_module()
 class SPVCNNDET(nn.Module):
-    def __init__(self, in_channels=4,sparse_shape=[41, 1600,1408],tobev_shape=[200,176],output_channels=256, **kwargs):
+    def __init__(self, in_channels=4,sparse_shape=[41, 1600,1408],tobev_shape=[400,352],output_channels=256, **kwargs):
         super().__init__()
         self.classes =['Car', 'Cyclist', 'Pedestrian']
-        self.VOXEL_SIZE=0.2
         cr = kwargs.get('cr', 1.0)
-        cs = [16, 32, 64, 128, 128, 256, 128, 96, 96]
+        cs = [16, 32, 64, 64, 128]
+        cs_p = [16, 32, 64, 80, 112, 128]
+        cp = [16, 32, 32]
         cs = [int(cr * x) for x in cs]
         self.bev_shape = tobev_shape
         self.pres = 0.05
@@ -115,66 +116,59 @@ class SPVCNNDET(nn.Module):
         '''
         self.output_channels= output_channels
         self.stem = nn.Sequential(
-            BasicConvolutionBlock(in_channels, cs[0], ks=3, stride=1, dilation=1),
-            BasicConvolutionBlock(cs[0], cs[0], ks=3, stride=1, dilation=1),     
+            BasicConvolutionBlock(in_channels, cs[0], ks=1, stride=1, dilation=0),
+            BasicConvolutionBlock(cs[0], cs[1], ks=3, stride=1, dilation=1),
             )
 
+
         self.stage1 = nn.Sequential(
-            StrideConvolutionBlock(cs[0], cs[1], ks=3, stride=2, dilation=1),   
+            StrideConvolutionBlock(cs[1], cs[1], ks=3, stride=2, dilation=1),   
             BasicConvolutionBlock(cs[1], cs[1], ks=3, stride=1, dilation=1),
-            BasicConvolutionBlock(cs[1], cs[1], ks=3, stride=1, dilation=1),
+            BasicConvolutionBlock(cs[1], cs[2], ks=3, stride=1, dilation=1),
         )
 
         self.stage2 = nn.Sequential(
-            StrideConvolutionBlock(cs[1], cs[2], ks=3, stride=2, dilation=1),
+            StrideConvolutionBlock(cs[2], cs[2], ks=3, stride=2, dilation=1),
             BasicConvolutionBlock(cs[2], cs[2], ks=3, stride=1, dilation=1),
-            BasicConvolutionBlock(cs[2], cs[2], ks=3, stride=1, dilation=1),
-            BasicConvolutionBlock(cs[2], cs[2], ks=3, stride=1, dilation=1),
-        )
-
-        self.stage3 = nn.Sequential(
-            StrideConvolutionBlock(cs[2], cs[3], ks=3, stride=2, dilation=1),
-            BasicConvolutionBlock(cs[3], cs[3], ks=3, stride=1, dilation=1),
-            BasicConvolutionBlock(cs[3], cs[3], ks=3, stride=1, dilation=1),
-            BasicConvolutionBlock(cs[3], cs[3], ks=3, stride=1, dilation=1),
+            BasicConvolutionBlock(cs[2], cs[3], ks=3, stride=1, dilation=1),
         )
         
-        self.stage4 = nn.Sequential( 
-            BasicConvolutionBlock(cs[3], cs[3], ks=3, stride=1, dilation=1), 
+        self.stage3 = nn.Sequential(
+            StrideConvolutionBlock(cs[3], cs[3], ks=3, stride=2, dilation=1),
             BasicConvolutionBlock(cs[3], cs[3], ks=3, stride=1, dilation=1),
             BasicConvolutionBlock(cs[3], cs[3], ks=3, stride=1, dilation=1),
         )
         
         self.stage_out = nn.Sequential(
-            BasicConvolutionBlock(cs[3], cs[3], ks=1, stride=1, dilation=1),
+            BasicConvolutionBlock(cs[3], cs[4], ks=3, stride=1, dilation=1),
         )
         self.to_bev = nn.Sequential(
-            spnn.ToDenseBEVConvolution(in_channels=cs[3], out_channels=self.output_channels,shape=np.array([self.bev_shape[0] ,self.bev_shape[1],5,1])),
+            spnn.ToDenseBEVConvolution(in_channels=cs[4], out_channels=self.output_channels,shape=np.array([self.bev_shape[0] ,self.bev_shape[1],10])),
             nn.BatchNorm2d(self.output_channels),
-            nn.ReLU(),
+            nn.ReLU(True),
         )
-        ''' 
+        
         self.point_transforms = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(cs[1], cs[1]),
-                nn.BatchNorm1d(cs[1]),
-                nn.ReLU(True),
-            ),
-            nn.Sequential(
-                nn.Linear(cs[1], cs[2]),
+                nn.Linear(4, cs[2]),
                 nn.BatchNorm1d(cs[2]),
                 nn.ReLU(True),
             ),
             nn.Sequential(
-                nn.Linear(cs[2], cs[3]),
-                nn.BatchNorm1d(cs[3]),
+                nn.Linear(cs[2], cs[2]),
+                nn.BatchNorm1d(cs[2]),
+                nn.ReLU(True),
+            ),
+            nn.Sequential(
+                nn.Linear(cs[2], cs[2]),
+                nn.BatchNorm1d(cs[2]),
                 nn.ReLU(True),
             )
         ])
         
-        self.weight_initialization()
-        self.dropout = nn.Dropout(0.3, True)
-        '''
+        #self.weight_initialization()
+        #self.dropout = nn.Dropout(0.3, True)
+        
     def init_weights(self, pretrained=None):
         pass
     def weight_initialization(self):
@@ -186,30 +180,26 @@ class SPVCNNDET(nn.Module):
     def forward(self, voxel_features, coors, batch_size):
         # x: SparseTensor z: PointTensor
         x = SparseTensor(voxel_features, coors[:,[2,3,1,0]].contiguous())
-
-        #z = PointTensor(x.F, x.C.float())
-        #x0 = point_to_voxel(x, z)
+        z0 = PointTensor(x.F, x.C.float())
+        x0 = self.stem(x)#in 4 ,out 16
+        x1 = self.stage1(x0)# in 16 , out 64
+        spvcnn=False
+        if spvcnn:
+            z1 = voxel_to_point(x1, z0)
+            z1.F = z1.F + self.point_transforms[0](z0.F)#64
+            x1 = point_to_voxel(x1, z1)
+        x2 = self.stage2(x1)#64
         
-
-
-        x0 = self.stem(x)
-        #x1 = point_to_voxel(x0, z0)
-        x1 = self.stage1(x0)
-        x2 = self.stage2(x1)
-        x3 = self.stage3(x2)
-        x4 = self.stage4(x3)
-        out = self.stage_out(x4)
- 
-        '''
-        z1 = voxel_to_point(x1, z0)
-        z1.F = z1.F + self.point_transforms[0](z0.F) 
-        y1 = point_to_voxel(x1, z1) 
-        x2 = self.stage2(y1)
-        z2 = voxel_to_point(x2, z0)
-        z2.F = z2.F + self.point_transforms[1](z1.F)
-        y2 = point_to_voxel(x2, z2) 
-        x3 = self.stage3(y2) 
-        '''     
+        if spvcnn:
+            z2 = voxel_to_point(x2, z1)
+            z2.F = z2.F + self.point_transforms[1](z1.F)#64
+            x2 = point_to_voxel(x2, z2)
+        x3 = self.stage3(x2)#64
+        if spvcnn:
+            z3 = voxel_to_point(x3, z2)
+            z3.F = z3.F + self.point_transforms[2](z2.F)#64
+            x3 = point_to_voxel(x3, z3)
+        
+        out = self.stage_out(x3)       
         spatial_feature = self.to_bev(out)
-        
         return spatial_feature

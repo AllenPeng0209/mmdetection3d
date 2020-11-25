@@ -34,6 +34,7 @@ class SECONDFPN(nn.Module):
         # if for GroupNorm,
         # cfg is dict(type='GN', num_groups=num_groups, eps=1e-3, affine=True)
         super(SECONDFPN, self).__init__()
+       
         assert len(out_channels) == len(upsample_strides) == len(in_channels)
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -84,7 +85,6 @@ class SECONDFPN(nn.Module):
         """
         assert len(x) == len(self.in_channels)
         ups = [deblock(x[i]) for i, deblock in enumerate(self.deblocks)]
-
         if len(ups) > 1:
             out = torch.cat(ups, dim=1)
         else:

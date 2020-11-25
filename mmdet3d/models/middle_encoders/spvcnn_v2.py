@@ -79,7 +79,7 @@ class ResidualBlock(nn.Module):
 
 @MIDDLE_ENCODERS.register_module()
 class SPVCNNV2(nn.Module):
-    def __init__(self, in_channels=4,sparse_shape=[41, 1600,1408],tobev_shape=[128,128],output_channels=128, **kwargs):
+    def __init__(self, in_channels=4,sparse_shape=[41, 1600,1408],tobev_shape=[200,176],output_channels=256, **kwargs):
         super().__init__()
 
         cr = kwargs.get('cr', 1.0)
@@ -119,7 +119,7 @@ class SPVCNNV2(nn.Module):
             BasicConvolutionBlock(cs[3], cs[3], ks=1, stride=1, dilation=1), 
         )
         self.to_bev = nn.Sequential(
-            spnn.ToDenseBEVConvolution(in_channels=cs[3], out_channels=self.output_channels,shape=np.array([self.output_channels,self.bev_shape[0],self.bev_shape[1],5])),
+            spnn.ToDenseBEVConvolution(in_channels=cs[3], out_channels=self.output_channels,shape=np.array([self.bev_shape[0],self.bev_shape[1],5,1])),
              nn.BatchNorm2d(self.output_channels),
              nn.ReLU(True),
         )
@@ -163,18 +163,20 @@ class SPVCNNV2(nn.Module):
         x2 = self.stage2(x1)
         x3 = self.stage3(x2)
         x4 = self.stage4(x3)
-        out = self.stage_out(x4)  
+        out = self.stage_out(x4) 
         spatial_feature = self.to_bev(out)
+        
 
-        z0 = voxel_to_point(x0, z)
+        
+        #z0 = voxel_to_point(x0, z)
         #z0.F = z0.F + self.point_transforms[0](z.F)
-        z1 = voxel_to_point(x1, z)
+        #z1 = voxel_to_point(x1, z)
         #z1.F = z1.F + self.point_transforms[1](z0.F)
-        z2 = voxel_to_point(x2, z)
+        #z2 = voxel_to_point(x2, z)
         #z2.F = z2.F + self.point_transforms[2](z1.F)
-        z3 = voxel_to_point(x3, z)
+        #z3 = voxel_to_point(x3, z)
         #z3.F = z3.F + self.point_transforms[3](z2.F)
-        z3.F = torch.cat([z0.F,z1.F,z2.F,z3.F], dim=-1)
+        #z3.F = torch.cat([z0.F,z1.F,z2.F,z3.F], dim=-1)
         
 
 
@@ -208,20 +210,20 @@ class SPVCNNV2(nn.Module):
         
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)
-        '''
+        
         #TODO  use collate function built in torchsparse
         batch_size = x.C[:, 3][-1] + 1
         point_xyz=[] 
         for i in range(batch_size):
             inds = (x.C[:, 3]==i)
             point_xyz.append(x.F[:, :3][inds])
-            
+        '''    
           
         
         #point_xyz= torch.stack(point_xyz)
         #point_feature = torch.stack(point_feature)
         #feature_dict = {'voxel_feature':tuple(voxel_feature_outs)}
         #point_xyz= x.F[:, :3]
-        #return spatial_feature
-        feature_dict = {'voxel_feature':spatial_feature, 'point_feature': z3 ,'point_xyz':point_xyz}
-        return feature_dict
+        return spatial_feature
+        #feature_dict = {'voxel_feature':spatial_feature, 'point_feature': z3 ,'point_xyz':point_xyz}
+        #return feature_dict
